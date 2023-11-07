@@ -195,4 +195,101 @@ namespace simple_mariadb::client {
         m_multi_insert = multi_insert;
     }
 
+//    std::unique_ptr<sql::ResultSet> MariaDBManager::query(const std::string &query) {
+//        try {
+//            if (this->is_connected()) {
+//                std::unique_ptr<sql::Statement> _stmnt(m_conn_select->createStatement());
+//                return std::unique_ptr<sql::ResultSet>(_stmnt->executeQuery(query));
+//            } else {
+//                m_conn_select->reconnect();
+//                return MariaDBManager::query(query);
+//            }
+//        } catch (std::exception &gc) {
+//            m_logger->send<simple_logger::LogLevel::ERROR>("MariadbClient query ERROR: " + std::string(gc.what()));
+//            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//            return MariaDBManager::query(query);
+//        }
+//    }
+
+    std::unique_ptr<sql::ResultSet> MariaDBManager::query(const std::string &query) {
+        const int max_retries = 3; // Max retries for query
+        for (int attempt = 0; attempt < max_retries; ++attempt) {
+            try {
+                if (!this->is_connected()) {
+                    m_conn_select->reconnect();
+                }
+                std::unique_ptr<sql::Statement> _stmnt(m_conn_select->createStatement());
+                std::unique_ptr<sql::ResultSet> res(_stmnt->executeQuery(query));
+                return res;
+            } catch (sql::SQLException &e) {
+                m_logger->send<simple_logger::LogLevel::ERROR>("MariadbClient query ERROR: " + std::string(e.what()));
+                if (attempt == max_retries - 1) {
+                    throw; // last attempt, throw exception
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100 * (attempt + 1))); //  Wait 100ms, 200ms, 300ms
+        }
+        throw std::runtime_error("Max retries reached for MariaDB query.");
+    }
+
+
+    json MariaDBManager::query_to_json(const std::string &query) {
+        return simple_mariadb::client::MariaDBManager::resultset_to_json(*this->query(query));
+    }
+
+    json MariaDBManager::resultset_to_json(sql::ResultSet &res) {
+        json result;
+        auto meta = res.getMetaData();
+        const size_t numColumns = meta->getColumnCount();
+        std::vector<std::string> columnNames;
+        std::vector<sql::DataType> columnTypes;
+
+        for (int i = 1; i <= numColumns; ++i) {
+            columnNames.emplace_back(meta->getColumnName(i));
+            columnTypes.push_back(static_cast<const sql::Types>(meta->getColumnType(i)));
+        }
+
+        while (res.next()) {
+            json row;
+            for (int i = 0; i < numColumns; ++i) {
+                const auto &columnName = columnNames[i];
+                const auto &columnType = columnTypes[i];
+
+                switch (columnType) {
+                    case sql::INTEGER:
+                        row[columnName] = res.getInt(columnName);
+                        break;
+                    case sql::BIGINT:
+                        row[columnName] = res.getInt64(columnName);
+                        break;
+                    case sql::BOOLEAN:
+                        row[columnName] = res.getBoolean(columnName);
+                        break;
+                    case sql::DOUBLE:
+                        row[columnName] = res.getDouble(columnName);
+                        break;
+                    case sql::FLOAT:
+                    case sql::REAL: // REAL is often just a synonym for FLOAT
+                        row[columnName] = res.getFloat(columnName);
+                        break;
+                    case sql::DATE:
+                    case sql::TIME:
+                    case sql::TIME_WITH_TIMEZONE:
+                    case sql::TIMESTAMP:
+                    case sql::TIMESTAMP_WITH_TIMEZONE:
+                        row[columnName] = res.getString(i); // And also the timestamp
+                        break;
+                        // Add cases for other types as necessary
+                    default:
+                        // For all other types, default to string representation
+                        row[columnName] = res.getString(columnName);
+                        break;
+                }
+            }
+            result.push_back(row);
+        }
+        return result;
+    }
+
+
 }

@@ -46,6 +46,12 @@ namespace simple_mariadb::client {
 
         void set_multi_insert(bool multi_insert);
 
+        std::unique_ptr<sql::ResultSet> query(const std::string &query);
+
+        json query_to_json(const std::string &query);
+
+        static json resultset_to_json(sql::ResultSet &res);
+
     private:
         bool m_is_connected(std::shared_ptr<sql::Connection> &conn);
 
