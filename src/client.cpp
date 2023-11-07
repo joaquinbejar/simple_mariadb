@@ -118,7 +118,6 @@ namespace simple_mariadb::client {
                             if (!m_insert(query)) // if m_insert fails, log error and discard query
                                 m_logger->send<simple_logger::LogLevel::ERROR>(
                                         "DISCARD QUERY: " + query);
-//                                enqueue(query);
                         }
                     }
                 }
@@ -130,16 +129,47 @@ namespace simple_mariadb::client {
                 }
             }
         }
-//        m_logger->send<simple_logger::LogLevel::DEBUG>("Queue thread stopped");
+        m_logger->send<simple_logger::LogLevel::DEBUG>("Queue thread stopped");
     }
 
     bool MariaDBManager::m_insert(const std::string &query) {
-        return false;
+        try {
+            std::lock_guard<std::mutex> lock(m_insert_mutex);
+            std::unique_ptr<sql::Statement> stmt(m_conn_insert->createStatement());
+            stmt->execute(query);
+        } catch (sql::SQLException &e) {
+            m_logger->send<simple_logger::LogLevel::ERROR>("INSERT failed: " + std::string(e.what()) + " QUERY: " +
+                                                           query);
+            return false;
+        }
+        return true;
     }
 
     bool MariaDBManager::m_insert_multi(const std::vector<std::string> &queries) {
-        return false;
+        bool success = true;
+        std::stringstream multi_query;
+
+        try {
+
+            multi_query << "START TRANSACTION;";
+            for (const auto &query: queries) {
+                multi_query << query << ";";
+            }
+            multi_query << "COMMIT;";
+
+            std::lock_guard<std::mutex> lock(m_insert_mutex);
+            std::unique_ptr<sql::Statement> stmt(m_conn_insert->createStatement());
+            stmt->execute(multi_query.str());
+
+        } catch (sql::SQLException &e) {
+            // if fails, rollback
+            m_logger->send<simple_logger::LogLevel::ERROR>("Multi INSERT failed: " + std::string(e.what()));
+            m_conn_insert->rollback();
+            success = false;
+        }
+        return success;
     }
+
 
     std::string MariaDBManager::m_dequeue() {
         std::string query;
