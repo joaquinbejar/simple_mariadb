@@ -68,9 +68,7 @@ namespace simple_mariadb::config {
 
 
     public:
-        std::string uri =
-                "jdbc:mariadb://" + m_user + ":" + m_password + "@" + m_hostname + ":" + std::to_string(m_port) + "/" +
-                m_database;
+        std::string uri = "jdbc:mariadb://" + m_hostname + ":" + std::to_string(m_port) + "/" + m_database;
         std::shared_ptr<simple_logger::Logger> logger = std::make_shared<simple_logger::Logger>(loglevel);
 
     };

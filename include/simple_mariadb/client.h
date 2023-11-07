@@ -17,7 +17,7 @@ namespace simple_mariadb::client {
 
 
     const std::regex QUERYREGEX(
-            R"(^\s*INSERT\s+INTO\s+[a-zA-Z_][a-zA-Z_0-9]*\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)\s*(ON\s+CONFLICT\s*\(([^)]+)\)\s*DO\s+UPDATE\s+SET\s*([^;]+))?\s*;?\s*$)",
+            R"(^\s*(INSERT|REPLACE)\s+INTO\s+[a-zA-Z_][a-zA-Z_0-9]*\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)\s*;?\s*$)",
             std::regex_constants::icase
     );
 
@@ -40,10 +40,15 @@ namespace simple_mariadb::client {
 
         void run();
 
-        bool is_connected(std::shared_ptr<sql::Connection> &conn);
+        bool is_connected();
+
+        bool is_thread_running();
 
     private:
+        bool m_is_connected(std::shared_ptr<sql::Connection> &conn);
+
         sql::Driver *m_driver = sql::mariadb::get_driver_instance();
+
         void get_connection(std::shared_ptr<sql::Connection> &conn);
 
         bool m_insert(const std::string &query);
