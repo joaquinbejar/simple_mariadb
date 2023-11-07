@@ -92,18 +92,19 @@ simple_mariadb::config::MariaDBConfig get_env_config() {
     return config;
 }
 
-//TEST_CASE("Testing MariaDBManager installation", "[queue]") {
-//
-//    SECTION("Fail connection to localhost") {
-//        simple_mariadb::config::MariaDBConfig config = get_default_config();
-//        REQUIRE(config.validate());
-//        config.logger->send<simple_logger::LogLevel::DEBUG>(config.to_string());
-//        REQUIRE(config.to_string() == "MariaDBConfig{hostname=localhost, port=3306, user=user, password=password, datab"
-//                                      "ase=database, multi_insert=1, autoreconnect=true, tcpkeepalive=true, connecttime"
-//                                      "out=30, sockettimeout=10000, uri=jdbc:mariadb://localhost:3306/database}");
-//        MariaDBManager dbManager(config);
-//    }
-//}
+TEST_CASE("Testing MariaDBManager installation", "[queue]") {
+
+    SECTION("Fail connection to localhost") {
+        simple_mariadb::config::MariaDBConfig config = get_default_config();
+        REQUIRE(config.validate());
+        config.logger->send<simple_logger::LogLevel::DEBUG>(config.to_string());
+        REQUIRE(config.to_string() == "MariaDBConfig{hostname=localhost, port=3306, user=user, password=password, datab"
+                                      "ase=database, multi_insert=1, autoreconnect=true, tcpkeepalive=true, connecttime"
+                                      "out=30, sockettimeout=10000, uri=jdbc:mariadb://localhost:3306/database}");
+        MariaDBManager dbManager(config);
+    }
+}
+
 
 TEST_CASE("Testing MariaDBManager installation valid connection", "[queue]") {
     simple_mariadb::config::MariaDBConfig config = get_env_config();
@@ -126,38 +127,22 @@ TEST_CASE("Testing MariaDBManager installation valid connection", "[queue]") {
 }
 
 
-//
-//
-//TEST_CASE("Testing ThreadQueue single-insert functionality", "[queue]") {
-//    setenv("MARIADB_MULTI_INSERT", "false", 1);
-//    setenv("LOGLEVEL", "debug", 1);
-//    simple_mariadb::config::MariaDBConfig config;
-////    config.logger->send<simple_logger::LogLevel::INFORMATIONAL>(config.to_string());
-//    MariaDBManager dbManager(config);
-//    auto id = common::key_generator();
-////    dbManager.stop(); // no thread
-//
-//    SECTION("Select data") {
-//        REQUIRE(dbManager.enqueue("INSERT INTO table_name (column1, column2) VALUES ('" + id + "', 'value2');") == true);
-//        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-//        auto result = dbManager.select("SELECT * FROM table_name where column1 = '" + id + "' and column2 = 'value2';");
-//        REQUIRE(!result.empty());  // Assume that the table is not empty
-//        REQUIRE(result[0]["column1"] == id);
-//        REQUIRE(result[0]["column2"] == "value2");
-//    }
-//
-//
-//
-//    SECTION("Testing enqueue multi queries method") {
-//        for (int i = 0; i < 100; ++i) {
-//            REQUIRE(dbManager.enqueue("INSERT INTO table_name (column1, column2) VALUES ('value_for_" + id + "', 'value" + std::to_string(i) + "');") == true);
-//        }
-//        std::this_thread::sleep_for(std::chrono::seconds(10));
-//        auto result = dbManager.select("SELECT * FROM table_name where column1 = 'value_for_" + id + "';");
-//        REQUIRE(!result.empty());  // Assume that the table is not empty
-//        REQUIRE(result.size() == 100);
-//    }
-//}
+TEST_CASE("Testing ThreadQueue single-insert functionality", "[queue]") {
+
+    simple_mariadb::config::MariaDBConfig config = get_env_config();
+    config.multi_insert = false;
+    MariaDBManager dbManager(config);
+    auto id = common::key_generator();
+    REQUIRE(dbManager.is_connected());
+    REQUIRE(dbManager.is_thread_running());
+
+    SECTION("Select data") {
+        REQUIRE(dbManager.enqueue("INSERT INTO table_name (column1, column2) VALUES ('" + id + "', 'value2');") == true);
+//      m_insert not implemented yet
+        dbManager.stop(true);
+    }
+}
+
 //
 //TEST_CASE("Testing ThreadQueue multi-insert with fails functionality", "[queue]") {
 //    setenv("MARIADB_MULTI_INSERT", "true", 1);

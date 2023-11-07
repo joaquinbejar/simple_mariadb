@@ -36,13 +36,15 @@ namespace simple_mariadb::client {
 
         size_t queue_size();
 
-        void stop();
+        void stop(bool force = false);
 
         void run();
 
         bool is_connected();
 
         bool is_thread_running();
+
+        void set_multi_insert(bool multi_insert);
 
     private:
         bool m_is_connected(std::shared_ptr<sql::Connection> &conn);
