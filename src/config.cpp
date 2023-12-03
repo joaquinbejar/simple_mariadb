@@ -27,6 +27,10 @@ namespace simple_mariadb::config {
             logger->send<simple_logger::LogLevel::ERROR>("Database is empty");
             return false;
         }
+        if (checker_time <= 0) {
+            logger->send<simple_logger::LogLevel::ERROR>("Checker time is not valid: " + std::to_string(checker_time));
+            return false;
+        }
 
         return true;
     }
@@ -42,6 +46,8 @@ namespace simple_mariadb::config {
         j["tcpkeepalive"] = m_tcpkeepalive;
         j["connecttimeout"] = m_connecttimeout;
         j["sockettimeout"] = m_sockettimeout;
+        j["multi_insert"] = multi_insert;
+        j["checker_time"] = checker_time;
 
         return j;
     }
@@ -57,6 +63,8 @@ namespace simple_mariadb::config {
             m_tcpkeepalive = j.at("tcpkeepalive").get<std::string>();
             m_connecttimeout = j.at("connecttimeout").get<std::string>();
             m_sockettimeout = j.at("sockettimeout").get<std::string>();
+            multi_insert = j.at("multi_insert").get<bool>();
+            checker_time = j.at("checker_time").get<int>();
 
         } catch (std::exception &e) {
             throw simple_config::ConfigException(e.what());
@@ -71,6 +79,7 @@ namespace simple_mariadb::config {
                ", password=" + m_password +
                ", database=" + m_database +
                ", multi_insert=" + std::to_string(multi_insert) +
+                ", checker_time=" + std::to_string(checker_time) +
                ", autoreconnect=" + m_autoreconnect +
                ", tcpkeepalive=" + m_tcpkeepalive +
                ", connecttimeout=" + m_connecttimeout +

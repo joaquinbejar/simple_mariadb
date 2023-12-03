@@ -5,14 +5,116 @@
 #include <simple_logger/logger.h>
 #include <simple_config/config.h>
 #include <simple_mariadb/client.h>
+#include <common/dates.h>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
-
+#include <string>
+#include <map>
+#include <random>
+#include <chrono>
+#include <utility>
 
 
 // ---------------------------------------------------------------------------------------------------
 using simple_mariadb::client::MariaDBManager;
 using simple_mariadb::client::is_insert_or_replace_query_correct;
+using simple_mariadb::client::InsertType;
+
+simple_mariadb::config::MariaDBConfig global_config;
+
+std::vector<json> create_vector_json(const std::string &label, int size = 100) {
+    std::string j_string = R"(
+    {
+        "uri": "mongodb://user:password@localhost:27017/database?authSource=admin&authMechanism=SCRAM-SHA-1",
+        "day": "2021-02-11",
+        "level": "debug",
+        "format": "%^[%l] %v%$",
+        "int": 5,
+        "float": 5.5,
+        "bool": true,
+        "array": [1, 2, 3],
+        "object": { "key": "value" },
+        "null": null,
+        "ISO 8601": "2021-02-11T12:00:00Z",
+        "ISO 8601 with timezone": "2021-02-11T12:00:00+01:00",
+        "ISO 8601 extended": "20210211T120000Z",
+        "ISO 8601 extended with timezone": "20210211T120000+0100",
+        "RFC 2822": "Mon, 11 Feb 2021 12:00:00 +0100",
+        "RFC 3339": "2021-02-11T12:00:00+01:00",
+        "Unix time": 1613024000,
+        "ISO 8601 with milliseconds": "2021-02-11T12:00:00.000Z",
+        "ISO 8601 extended with milliseconds": "20210211T120000.000Z",
+        "ISO 8601 extended with microseconds": "2023-02-10T19:24:14.324268",
+        "ISO 8601 extended with nanoseconds": "2023-02-10T19:24:14.324268000"
+    }
+    )";
+    json is_json = json::parse(j_string);
+    std::vector<json> j;
+    for (int i = 0; i < size; i++) {
+        is_json["name"] = label + "_" + std::to_string(i);
+        is_json["inserted_at"] = common::dates::get_unix_timestamp();
+        is_json["expiration_at"] = common::dates::get_unix_timestamp(60);
+        is_json["value"] = i;
+        j.push_back(is_json);
+    }
+    return j;
+}
+
+class CreateAndDestroy {
+public:
+    std::string table;
+    bool delete_it;
+    bool table_created_successfully;
+
+    explicit CreateAndDestroy(std::string table_name = "MariaClient_Test_", bool delete_on_destroy = true)
+            : table(std::move(table_name)), delete_it(delete_on_destroy), table_created_successfully(false) {
+        // Append a random string to the table name
+        table += generate_random_string(10);
+
+        // Create the table
+        create_table();
+    }
+
+    ~CreateAndDestroy() {
+        if (delete_it && table_created_successfully) {
+            drop_table();
+        }
+    }
+
+    void create_table() {
+        // Use a try-catch block to handle any exceptions and set the flag accordingly
+        try {
+            simple_mariadb::client::MariaDBManager maria(global_config);
+            std::map<std::string, std::string> columns = {{"id", "INT NOT NULL DEFAULT UNIX_TIMESTAMP()"}};
+            maria.create_table(table, columns);
+            table_created_successfully = true;
+        } catch (const std::exception &e) {
+            // Handle exceptions, such as logging the error
+            table_created_successfully = false;
+        }
+    }
+
+    void drop_table() const {
+        simple_mariadb::client::MariaDBManager maria(global_config);
+        maria.drop_table(table);
+    }
+
+private:
+    static std::string generate_random_string(size_t length) {
+        // Use the <random> library to generate a random string of a given length
+        const std::string chars = "abcdefghijklmnopqrstuvwxyz";
+        std::random_device random_device;
+        std::mt19937 generator(random_device());
+        std::uniform_int_distribution<> distribution(0, chars.size() - 1);
+
+        std::string random_string;
+        for (size_t i = 0; i < length; ++i) {
+            random_string += chars[distribution(generator)];
+        }
+
+        return random_string;
+    }
+};
 
 // Helper function to save the current environment variable
 std::string get_env_var(const std::string &key) {
@@ -37,6 +139,7 @@ simple_mariadb::config::MariaDBConfig get_default_config() {
     auto old_port = get_env_var("MARIADB_PORT");
     auto old_database = get_env_var("MARIADB_DATABASE");
     auto old_multi_insert = get_env_var("MARIADB_MULTI_INSERT");
+    auto old_checker_time = get_env_var("CHECKER_TIME");
 
     // Set new environment
     setenv("MARIADB_HOSTNAME", "localhost", 1);
@@ -45,6 +148,7 @@ simple_mariadb::config::MariaDBConfig get_default_config() {
     setenv("MARIADB_PORT", "3306", 1);
     setenv("MARIADB_DATABASE", "database", 1);
     setenv("MARIADB_MULTI_INSERT", "true", 1);
+    setenv("CHECKER_TIME", "30", 1);
 
     simple_mariadb::config::MariaDBConfig config;
     config.logger->send<simple_logger::LogLevel::INFORMATIONAL>(config.to_string());
@@ -56,10 +160,10 @@ simple_mariadb::config::MariaDBConfig get_default_config() {
     set_env_var("MARIADB_PORT", old_port);
     set_env_var("MARIADB_DATABASE", old_database);
     set_env_var("MARIADB_MULTI_INSERT", old_multi_insert);
+    set_env_var("CHECKER_TIME", old_checker_time);
 
     return config;
 }
-
 
 simple_mariadb::config::MariaDBConfig get_empty_config() {
     auto old_hostname = get_env_var("MARIADB_HOSTNAME");
@@ -68,6 +172,7 @@ simple_mariadb::config::MariaDBConfig get_empty_config() {
     auto old_port = get_env_var("MARIADB_PORT");
     auto old_database = get_env_var("MARIADB_DATABASE");
     auto old_multi_insert = get_env_var("MARIADB_MULTI_INSERT");
+    auto old_checker_time = get_env_var("CHECKER_TIME");
 
     unsetenv("MARIADB_HOSTNAME");
     unsetenv("MARIADB_USER");
@@ -75,6 +180,7 @@ simple_mariadb::config::MariaDBConfig get_empty_config() {
     unsetenv("MARIADB_PORT");
     unsetenv("MARIADB_DATABASE");
     unsetenv("MARIADB_MULTI_INSERT");
+    unsetenv("CHECKER_TIME");
     simple_mariadb::config::MariaDBConfig config;
     config.logger->send<simple_logger::LogLevel::INFORMATIONAL>(config.to_string());
     set_env_var("MARIADB_HOSTNAME", old_hostname);
@@ -83,6 +189,7 @@ simple_mariadb::config::MariaDBConfig get_empty_config() {
     set_env_var("MARIADB_PORT", old_port);
     set_env_var("MARIADB_DATABASE", old_database);
     set_env_var("MARIADB_MULTI_INSERT", old_multi_insert);
+    set_env_var("CHECKER_TIME", old_checker_time);
     return config;
 }
 
@@ -98,13 +205,13 @@ TEST_CASE("Testing MariaDBManager installation", "[queue]") {
         simple_mariadb::config::MariaDBConfig config = get_default_config();
         REQUIRE(config.validate());
         config.logger->send<simple_logger::LogLevel::DEBUG>(config.to_string());
-        REQUIRE(config.to_string() == "MariaDBConfig{hostname=localhost, port=3306, user=user, password=password, datab"
-                                      "ase=database, multi_insert=1, autoreconnect=true, tcpkeepalive=true, connecttime"
-                                      "out=30, sockettimeout=10000, uri=jdbc:mariadb://localhost:3306/database}");
+        REQUIRE(config.to_string() == "MariaDBConfig{hostname=localhost, port=3306, user=user, password=password, "
+                                      "database=database, multi_insert=1, checker_time=30, autoreconnect=true, "
+                                      "tcpkeepalive=true, connecttimeout=30, sockettimeout=10000, "
+                                      "uri=jdbc:mariadb://localhost:3306/database}");
         MariaDBManager dbManager(config);
     }
 }
-
 
 TEST_CASE("Testing MariaDBManager installation valid connection", "[queue]") {
     simple_mariadb::config::MariaDBConfig config = get_env_config();
@@ -126,7 +233,6 @@ TEST_CASE("Testing MariaDBManager installation valid connection", "[queue]") {
 
 }
 
-
 TEST_CASE("Testing ThreadQueue single-insert functionality", "[queue]") {
 
     simple_mariadb::config::MariaDBConfig config = get_env_config();
@@ -137,13 +243,163 @@ TEST_CASE("Testing ThreadQueue single-insert functionality", "[queue]") {
     REQUIRE(dbManager.is_thread_running());
 
     SECTION("Select data") {
-        REQUIRE(dbManager.enqueue("INSERT INTO table_name (column1, column2) VALUES ('" + id + "', 'value2');") == true);
-//      m_insert not implemented yet
+        REQUIRE(dbManager.enqueue("INSERT INTO table_name (column1, column2) VALUES ('" + id + "', 'value2');") ==
+                true);
         dbManager.stop(true);
     }
 }
 
-//
+TEST_CASE("Replaces based on InsertType::REPLACE", "[replace_insert_type]") {
+
+    SECTION("Insert to Replace") {
+        std::string query1 = "INSERT INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "insert into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "INSERT  into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " insert  INTO  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::REPLACE);
+        replace_insert_type(query2, InsertType::REPLACE);
+        replace_insert_type(query3, InsertType::REPLACE);
+        replace_insert_type(query4, InsertType::REPLACE);
+        REQUIRE(query1 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+
+    SECTION("Replace to Replace") {
+        std::string query1 = "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "replace into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "REPLACE  into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " replace  INTO  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::REPLACE);
+        replace_insert_type(query2, InsertType::REPLACE);
+        replace_insert_type(query3, InsertType::REPLACE);
+        replace_insert_type(query4, InsertType::REPLACE);
+        REQUIRE(query1 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+
+    SECTION("Ignore to Replace") {
+        std::string query1 = "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "insert ignore into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "INSERT  ignore into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " insert  IGNORE  into  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::REPLACE);
+        replace_insert_type(query2, InsertType::REPLACE);
+        replace_insert_type(query3, InsertType::REPLACE);
+        replace_insert_type(query4, InsertType::REPLACE);
+        REQUIRE(query1 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+}
+
+TEST_CASE("Replaces based on InsertType::IGNORE", "[replace_insert_type]") {
+
+    SECTION("Insert to IGNORE") {
+        std::string query1 = "INSERT INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "insert into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "INSERT  into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " insert  INTO  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::IGNORE);
+        replace_insert_type(query2, InsertType::IGNORE);
+        replace_insert_type(query3, InsertType::IGNORE);
+        replace_insert_type(query4, InsertType::IGNORE);
+        REQUIRE(query1 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+
+    SECTION("Replace to IGNORE") {
+        std::string query1 = "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "replace into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "REPLACE  into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " replace  INTO  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::IGNORE);
+        replace_insert_type(query2, InsertType::IGNORE);
+        replace_insert_type(query3, InsertType::IGNORE);
+        replace_insert_type(query4, InsertType::IGNORE);
+        REQUIRE(query1 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+
+    SECTION("Ignore to IGNORE") {
+        std::string query1 = "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "insert ignore into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "INSERT  ignore into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " insert  IGNORE  into  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::IGNORE);
+        replace_insert_type(query2, InsertType::IGNORE);
+        replace_insert_type(query3, InsertType::IGNORE);
+        replace_insert_type(query4, InsertType::IGNORE);
+        REQUIRE(query1 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+}
+
+TEST_CASE("Replaces based on InsertType::INSERT", "[replace_insert_type]") {
+
+    SECTION("Insert to INSERT") {
+        std::string query1 = "INSERT INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "insert into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "INSERT  into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " insert  INTO  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::INSERT);
+        replace_insert_type(query2, InsertType::INSERT);
+        replace_insert_type(query3, InsertType::INSERT);
+        replace_insert_type(query4, InsertType::INSERT);
+        REQUIRE(query1 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+
+    SECTION("Replace to INSERT") {
+        std::string query1 = "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "replace into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "REPLACE  into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " replace  INTO  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::INSERT);
+        replace_insert_type(query2, InsertType::INSERT);
+        replace_insert_type(query3, InsertType::INSERT);
+        replace_insert_type(query4, InsertType::INSERT);
+        REQUIRE(query1 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+
+    SECTION("Ignore to INSERT") {
+        std::string query1 = "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)";
+        std::string query2 = "insert ignore into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query3 = "INSERT  ignore into table_name (column1, column2) VALUES (value1, value2)";
+        std::string query4 = " insert  IGNORE  into  table_name (column1, column2) VALUES (value1, value2)";
+        replace_insert_type(query1, InsertType::INSERT);
+        replace_insert_type(query2, InsertType::INSERT);
+        replace_insert_type(query3, InsertType::INSERT);
+        replace_insert_type(query4, InsertType::INSERT);
+        REQUIRE(query1 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query2 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query3 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+        REQUIRE(query4 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
+    }
+}
+
+TEST_CASE("Testing connection", "[queue]") {
+    simple_mariadb::config::MariaDBConfig config;
+    config.logger->send<simple_logger::LogLevel::INFORMATIONAL>(config.to_string());
+    MariaDBManager dbManager(config);
+    REQUIRE(dbManager.is_connected());
+}
+
 //TEST_CASE("Testing ThreadQueue multi-insert with fails functionality", "[queue]") {
 //    setenv("MARIADB_MULTI_INSERT", "true", 1);
 //    setenv("LOGLEVEL", "debug", 1);
@@ -154,6 +410,7 @@ TEST_CASE("Testing ThreadQueue single-insert functionality", "[queue]") {
 //
 //
 //    SECTION("Testing enqueue multi queries method") {
+//        REQUIRE(dbManager.is_connected());
 //        for (int i = 0; i < 10; ++i) {
 //            for (int j = 0; j < 10; ++j) {
 //                REQUIRE(dbManager.enqueue(
@@ -171,53 +428,77 @@ TEST_CASE("Testing ThreadQueue single-insert functionality", "[queue]") {
 //        REQUIRE(result.size() == 100);
 //    }
 //}
-//
-//TEST_CASE("Testing ThreadQueue select types functionality", "[queue]") {
-//    setenv("MARIADB_MULTI_INSERT", "true", 1);
-//    setenv("LOGLEVEL", "debug", 1);
-//    simple_mariadb::config::MariaDBConfig config;
-////    config.logger->send<simple_logger::LogLevel::INFORMATIONAL>(config.to_string());
-//    MariaDBManager dbManager(config);
-//
-//    SECTION("Testing enqueue multi queries method") {
-//        auto id = common::key_generator();
-//            for (int j = 0; j < 100; ++j) {
-//                REQUIRE(dbManager.enqueue(
-//                        "INSERT INTO table_name2 (name , dates, number, f) VALUES ('" + id + "', '2020-10-12'," +
-//                        std::to_string(j) + ", 2.2);") == true);
-//            }
-//
-//        REQUIRE(dbManager.queue_size() > 0);
-//        std::this_thread::sleep_for(std::chrono::seconds(10));
-//        auto result = dbManager.select("SELECT * FROM table_name2 where name = '" + id + "';");
-//        REQUIRE(!result.empty());  // Assume that the table is not empty
-//        REQUIRE(result.size() == 100);
-//        for (int i = 0; i < 100; ++i) {
-//            REQUIRE(result[i]["name"] == id);
+
+
+
+TEST_CASE("Testing ThreadQueue select types functionality", "[queue]") {
+    setenv("MARIADB_MULTI_INSERT", "true", 1);
+    setenv("LOGLEVEL", "debug", 1);
+
+
+    SECTION("Testing enqueue multi queries method") {
+        simple_mariadb::config::MariaDBConfig config;
+        MariaDBManager dbManager(config);
+        REQUIRE(dbManager.is_connected());
+        REQUIRE(dbManager.is_thread_running());
+
+        CreateAndDestroy createAndDestroy;
+        REQUIRE(createAndDestroy.table_created_successfully);
+
+        std::map<std::string, std::string> columns;
+        columns["name"] = "VARCHAR(255) NOT NULL";
+        columns["number"] = "INT NOT NULL";
+        columns["f"] = "FLOAT NOT NULL";
+        columns["dates"] = "DATE NOT NULL";
+        bool result_create_columns = dbManager.add_columns_to_table(createAndDestroy.table, columns);
+        REQUIRE(result_create_columns);
+
+        auto id = common::key_generator();
+        for (int j = 0; j < 100; ++j) {
+            std::string query = "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id +
+                                "', '2020-10-12'," +
+                                std::to_string(j) + ", 2.2);";
+            REQUIRE(dbManager.enqueue(query) == true);
+        }
+        REQUIRE(dbManager.queue_size() > 0);
+        while (dbManager.queue_size() > 0) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        REQUIRE(dbManager.queue_size() == 0);
+        dbManager.stop();
+        std::string select_query = "SELECT `name`,`dates` FROM " + createAndDestroy.table + " where `name` = '" + id + "';";
+        auto result = dbManager.select(select_query);
+        REQUIRE(!result.empty());  // Assume that the table is not empty
+        REQUIRE(result.size() == 100);
+        for (int i = 0; i < 100; ++i) {
+            REQUIRE(result[i]["name"] == id);
+            // TODO: Fix select
 //            REQUIRE(result[i]["dates"] == "2020-10-12");
 //            REQUIRE(result[i]["number"] == std::to_string(i));
 //            REQUIRE(result[i]["f"] == "2.2");
-//
-//        }
-//    }
-//
+        }
+    }
+
+
 //    SECTION("Testing updates ") {
+//        CreateAndDestroy createAndDestroy;
+//        REQUIRE(createAndDestroy.table_created_successfully);
 //        auto id = common::key_generator();
 //        for (int j = 0; j < 100; ++j) {
 //            REQUIRE(dbManager.enqueue(
-//                    "INSERT INTO table_name2 (name , dates, number, f) VALUES ('" + id + "', '2020-10-12'," +
+//                    "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id + "', '2020-10-12'," +
 //                    std::to_string(j) + ", 2.2);") == true);
 //        }
 //
 //        for (int j = 0; j < 100; ++j) {
 //            REQUIRE(dbManager.enqueue(
-//                    "INSERT INTO table_name2 (name , dates, number, f) VALUES ('" + id + "', '2020-10-12'," +
+//                    "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id + "', '2020-10-12'," +
 //                    std::to_string(j) + ", 2.2) ON CONFLICT (name,number) DO UPDATE SET f = 3.3;") == true);
 //        }
 //
 //        REQUIRE(dbManager.queue_size() > 0);
 //        std::this_thread::sleep_for(std::chrono::seconds(10));
-//        auto result = dbManager.select("SELECT * FROM table_name2 where name = '" + id + "';");
+//        auto result = dbManager.select("SELECT * FROM " + createAndDestroy.table + " where name = '" + id + "';");
 //        REQUIRE(!result.empty());  // Assume that the table is not empty
 //        REQUIRE(result.size() == 100);
 //        for (int i = 0; i < 100; ++i) {
@@ -228,4 +509,5 @@ TEST_CASE("Testing ThreadQueue single-insert functionality", "[queue]") {
 //
 //        }
 //    }
-//}
+
+}

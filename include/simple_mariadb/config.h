@@ -52,6 +52,7 @@ namespace simple_mariadb::config {
         [[nodiscard]] std::string to_string() const override;
 
         bool multi_insert = common::get_env_variable_bool("MARIADB_MULTI_INSERT", false);
+        int checker_time = common::get_env_variable_int("CHECKER_TIME", 30);
 
         std::map<sql::SQLString, sql::SQLString> get_options();
 
@@ -65,6 +66,8 @@ namespace simple_mariadb::config {
         std::string m_tcpkeepalive = common::get_env_variable_string("MARIADB_TCPKEEPALIVE", "true");
         std::string m_connecttimeout = common::get_env_variable_string("MARIADB_CONNECTTIMEOUT", "30");
         std::string m_sockettimeout = common::get_env_variable_string("MARIADB_SOCKETTIMEOUT", "10000");
+
+
 
 
     public:
