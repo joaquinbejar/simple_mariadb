@@ -114,6 +114,8 @@ namespace simple_mariadb::client {
 
         std::vector<std::map<std::string, std::string>> result;
         json json_result = this->query_to_json(query);
+
+        std::cout << json_result.dump(4) << std::endl;
         result.reserve(json_result.size());
         for (auto &row: json_result) {
             std::map<std::string, std::string> map_row;
@@ -125,9 +127,10 @@ namespace simple_mariadb::client {
         return result;
     }
 
-    bool MariaDBManager::enqueue(const std::string &query) {
+    bool MariaDBManager::enqueue(const std::string &query, bool check_correctness) {
+        if (!check_correctness)
+            return m_queries.enqueue(query);
         if (is_insert_or_replace_query_correct(query)) {
-//            m_logger->send<simple_logger::LogLevel::DEBUG>("Enqueue query: " + query);
             return m_queries.enqueue(query);
         } else {
             m_logger->send<simple_logger::LogLevel::ERROR>("Query is not correct: " + query);
@@ -163,7 +166,7 @@ namespace simple_mariadb::client {
         while (m_queue_thread_is_running) {
 //            m_logger->send<simple_logger::LogLevel::DEBUG>("Queue thread running");
             if (!m_is_connected(m_conn_write)) {
-                m_logger->send<simple_logger::LogLevel::ERROR>("Thread Connection to database failed: " + m_config.uri);
+                m_logger->send<simple_logger::LogLevel::INFORMATIONAL>("Thread Connection to database failed: " + m_config.uri);
                 // sleep for 1 second
                 std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 m_get_connection(m_conn_write);
@@ -200,14 +203,14 @@ namespace simple_mariadb::client {
         while (m_checker_thread_is_running) {
             m_logger->send<simple_logger::LogLevel::DEBUG>("Checker thread running");
             if (!this->m_is_connected(m_conn_read)) {
-                m_logger->send<simple_logger::LogLevel::ERROR>("Checker Read Connection to database failed: " +
-                                                               m_config.uri);
+                m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
+                        "Checker Read Connection to database failed: " + m_config.uri);
                 std::lock_guard<std::mutex> lock(m_read_mutex);
                 m_get_connection(m_conn_read);
             }
             if (!this->m_is_connected(m_conn_write)) {
-                m_logger->send<simple_logger::LogLevel::ERROR>("Checker Write Connection to database failed: " +
-                                                               m_config.uri);
+                m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
+                        "Checker Write Connection to database failed: " + m_config.uri);
                 std::lock_guard<std::mutex> lock(m_write_mutex);
                 m_get_connection(m_conn_read);
             }
@@ -306,59 +309,120 @@ namespace simple_mariadb::client {
         return simple_mariadb::client::MariaDBManager::resultset_to_json(*this->query(query));
     }
 
+//    json MariaDBManager::resultset_to_json(sql::ResultSet &res) {
+//        json result;
+//        auto meta = res.getMetaData();
+//        const size_t numColumns = meta->getColumnCount();
+//        std::vector<std::string> columnNames;
+//        std::vector<sql::DataType> columnTypes;
+//
+//        for (int i = 1; i <= numColumns; ++i) {
+//            columnNames.emplace_back(meta->getColumnName(i));
+//            columnTypes.push_back(static_cast<const sql::Types>(meta->getColumnType(i)));
+//        }
+//
+//        while (res.next()) {
+//            json row;
+//            for (int i = 0; i < numColumns; ++i) {
+//                const auto &columnName = columnNames[i];
+//                const auto &columnType = columnTypes[i];
+//
+//                switch (columnType) {
+//                    case sql::INTEGER:
+//                        row[columnName] = res.getInt(columnName);
+//                        break;
+//                    case sql::BIGINT:
+//                        row[columnName] = res.getInt64(columnName);
+//                        break;
+//                    case sql::BOOLEAN:
+//                        row[columnName] = res.getBoolean(columnName);
+//                        break;
+//                    case sql::DOUBLE:
+//                        row[columnName] = res.getDouble(columnName);
+//                        break;
+//                    case sql::FLOAT:
+//                    case sql::REAL: // REAL is often just a synonym for FLOAT
+//                        row[columnName] = res.getFloat(columnName);
+//                        break;
+//                    case sql::DATE:
+//                    case sql::TIME:
+//                    case sql::TIME_WITH_TIMEZONE:
+//                    case sql::TIMESTAMP:
+//                    case sql::TIMESTAMP_WITH_TIMEZONE:
+//                        row[columnName] = res.getString(i); // And also the timestamp
+//                        break;
+//                        // Add cases for other types as necessary
+//                    default:
+//                        // For all other types, default to string representation
+//                        row[columnName] = res.getString(columnName);
+//                        break;
+//                }
+//            }
+//            result.push_back(row);
+//        }
+//        return result;
+//    }
+
     json MariaDBManager::resultset_to_json(sql::ResultSet &res) {
         json result;
         auto meta = res.getMetaData();
         const size_t numColumns = meta->getColumnCount();
-        std::vector<std::string> columnNames;
-        std::vector<sql::DataType> columnTypes;
-
-        for (int i = 1; i <= numColumns; ++i) {
-            columnNames.emplace_back(meta->getColumnName(i));
-            columnTypes.push_back(static_cast<const sql::Types>(meta->getColumnType(i)));
-        }
 
         while (res.next()) {
             json row;
-            for (int i = 0; i < numColumns; ++i) {
-                const auto &columnName = columnNames[i];
-                const auto &columnType = columnTypes[i];
+            for (size_t i = 1; i <= numColumns; ++i) {
+                const std::string columnName = std::string(meta->getColumnName(i));
+                const auto columnType = static_cast<sql::DataType>(meta->getColumnType(i));
 
-                switch (columnType) {
-                    case sql::INTEGER:
-                        row[columnName] = res.getInt(columnName);
-                        break;
-                    case sql::BIGINT:
-                        row[columnName] = res.getInt64(columnName);
-                        break;
-                    case sql::BOOLEAN:
-                        row[columnName] = res.getBoolean(columnName);
-                        break;
-                    case sql::DOUBLE:
-                        row[columnName] = res.getDouble(columnName);
-                        break;
-                    case sql::FLOAT:
-                    case sql::REAL: // REAL is often just a synonym for FLOAT
-                        row[columnName] = res.getFloat(columnName);
-                        break;
-                    case sql::DATE:
-                    case sql::TIME:
-                    case sql::TIME_WITH_TIMEZONE:
-                    case sql::TIMESTAMP:
-                    case sql::TIMESTAMP_WITH_TIMEZONE:
-                        row[columnName] = res.getString(i); // And also the timestamp
-                        break;
-                        // Add cases for other types as necessary
-                    default:
-                        // For all other types, default to string representation
-                        row[columnName] = res.getString(columnName);
-                        break;
+                if (res.wasNull()) {
+                    row[columnName] = nullptr;
+                    continue;
+                }
+
+
+                try {
+                    switch (columnType) {
+                        case sql::INTEGER:
+                            row[columnName] = res.getInt(columnName);
+                            break;
+                        case sql::BIGINT:
+                            row[columnName] = res.getInt64(columnName);
+                            break;
+                        case sql::BOOLEAN:
+                            row[columnName] = res.getBoolean(columnName);
+                            break;
+                        case sql::DOUBLE:
+                            row[columnName] = res.getDouble(columnName);
+                            break;
+                        case sql::FLOAT:
+                        case sql::REAL: // REAL is often just a synonym for FLOAT
+                            row[columnName] = res.getFloat(columnName);
+                            break;
+                        case sql::DATE:
+                        case sql::TIME:
+                        case sql::TIME_WITH_TIMEZONE:
+                        case sql::TIMESTAMP:
+                        case sql::TIMESTAMP_WITH_TIMEZONE:
+                            row[columnName] = res.getString(columnName); // Use getString for date/time types
+                            break;
+                            // Add cases for other types as necessary
+                        default:
+                            // For all other types, default to string representation
+                            row[columnName] = res.getString(columnName);
+                            break;
+                    }
+                } catch (sql::SQLException &e) {
+                    std::cout << "columnName: " << columnName << " type: " << columnType << std::endl;
+                    std::cout << "MariaDBManager::resultset_to_json ERROR " << e.what() << std::endl;
+
+                    row[columnName] = nullptr;
                 }
             }
             result.push_back(row);
         }
         return result;
     }
+
 
     bool MariaDBManager::ping() {
         try {

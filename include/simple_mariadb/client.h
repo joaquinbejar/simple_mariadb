@@ -57,7 +57,7 @@ namespace simple_mariadb::client {
 
         std::vector<std::map<std::string, std::string>> select(const std::string &query);
 
-        bool enqueue(const std::string &query);
+        bool enqueue(const std::string &query, bool check_correctness = true);
 
         size_t queue_size();
 

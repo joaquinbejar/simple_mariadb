@@ -13,7 +13,7 @@
 #include <random>
 #include <chrono>
 #include <utility>
-
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 // ---------------------------------------------------------------------------------------------------
 using simple_mariadb::client::MariaDBManager;
@@ -21,44 +21,6 @@ using simple_mariadb::client::is_insert_or_replace_query_correct;
 using simple_mariadb::client::InsertType;
 
 simple_mariadb::config::MariaDBConfig global_config;
-
-std::vector<json> create_vector_json(const std::string &label, int size = 100) {
-    std::string j_string = R"(
-    {
-        "uri": "mongodb://user:password@localhost:27017/database?authSource=admin&authMechanism=SCRAM-SHA-1",
-        "day": "2021-02-11",
-        "level": "debug",
-        "format": "%^[%l] %v%$",
-        "int": 5,
-        "float": 5.5,
-        "bool": true,
-        "array": [1, 2, 3],
-        "object": { "key": "value" },
-        "null": null,
-        "ISO 8601": "2021-02-11T12:00:00Z",
-        "ISO 8601 with timezone": "2021-02-11T12:00:00+01:00",
-        "ISO 8601 extended": "20210211T120000Z",
-        "ISO 8601 extended with timezone": "20210211T120000+0100",
-        "RFC 2822": "Mon, 11 Feb 2021 12:00:00 +0100",
-        "RFC 3339": "2021-02-11T12:00:00+01:00",
-        "Unix time": 1613024000,
-        "ISO 8601 with milliseconds": "2021-02-11T12:00:00.000Z",
-        "ISO 8601 extended with milliseconds": "20210211T120000.000Z",
-        "ISO 8601 extended with microseconds": "2023-02-10T19:24:14.324268",
-        "ISO 8601 extended with nanoseconds": "2023-02-10T19:24:14.324268000"
-    }
-    )";
-    json is_json = json::parse(j_string);
-    std::vector<json> j;
-    for (int i = 0; i < size; i++) {
-        is_json["name"] = label + "_" + std::to_string(i);
-        is_json["inserted_at"] = common::dates::get_unix_timestamp();
-        is_json["expiration_at"] = common::dates::get_unix_timestamp(60);
-        is_json["value"] = i;
-        j.push_back(is_json);
-    }
-    return j;
-}
 
 class CreateAndDestroy {
 public:
@@ -119,7 +81,7 @@ private:
 // Helper function to save the current environment variable
 std::string get_env_var(const std::string &key) {
     char *val = getenv(key.c_str());
-    return val == NULL ? std::string() : std::string(val);
+    return val == nullptr ? std::string() : std::string(val);
 }
 
 // Helper function to restore the environment variable
@@ -209,7 +171,6 @@ TEST_CASE("Testing MariaDBManager installation", "[queue]") {
                                       "database=database, multi_insert=1, checker_time=30, autoreconnect=true, "
                                       "tcpkeepalive=true, connecttimeout=30, sockettimeout=10000, "
                                       "uri=jdbc:mariadb://localhost:3306/database}");
-        MariaDBManager dbManager(config);
     }
 }
 
@@ -400,47 +361,17 @@ TEST_CASE("Testing connection", "[queue]") {
     REQUIRE(dbManager.is_connected());
 }
 
-//TEST_CASE("Testing ThreadQueue multi-insert with fails functionality", "[queue]") {
-//    setenv("MARIADB_MULTI_INSERT", "true", 1);
-//    setenv("LOGLEVEL", "debug", 1);
-//    simple_mariadb::config::MariaDBConfig config;
-//    config.logger->send<simple_logger::LogLevel::INFORMATIONAL>(config.to_string());
-//    MariaDBManager dbManager(config);
-//    auto id = common::key_generator();
-//
-//
-//    SECTION("Testing enqueue multi queries method") {
-//        REQUIRE(dbManager.is_connected());
-//        for (int i = 0; i < 10; ++i) {
-//            for (int j = 0; j < 10; ++j) {
-//                REQUIRE(dbManager.enqueue(
-//                        "INSERT INTO table_name (column1, column2) VALUES ('value_for_" + id + "', 'value" +
-//                        std::to_string(i) + "_"+std::to_string(j) +"');") == true);
-//            }
-//            REQUIRE(dbManager.enqueue( // This query wrong syntax should fail
-//                    "INSERT INTO table_name (column1, column2) VALUES ('value_for_" + id + "', value" +
-//                    std::to_string(i) + ");") == true);
-//        }
-//        REQUIRE(dbManager.queue_size() > 0);
-//        std::this_thread::sleep_for(std::chrono::seconds(30));
-//        auto result = dbManager.select("SELECT * FROM table_name where column1 = 'value_for_" + id + "';");
-//        REQUIRE(!result.empty());  // Assume that the table is not empty
-//        REQUIRE(result.size() == 100);
-//    }
-//}
-
-
-
-TEST_CASE("Testing ThreadQueue select types functionality", "[queue]") {
+TEST_CASE("Testing ThreadQueue select types functionality multi", "[queue]") {
     setenv("MARIADB_MULTI_INSERT", "true", 1);
     setenv("LOGLEVEL", "debug", 1);
+    size_t size = 10;
+    simple_mariadb::config::MariaDBConfig config;
+    MariaDBManager dbManager(config);
+    REQUIRE(dbManager.is_connected());
+    REQUIRE(dbManager.is_thread_running());
 
 
     SECTION("Testing enqueue multi queries method") {
-        simple_mariadb::config::MariaDBConfig config;
-        MariaDBManager dbManager(config);
-        REQUIRE(dbManager.is_connected());
-        REQUIRE(dbManager.is_thread_running());
 
         CreateAndDestroy createAndDestroy;
         REQUIRE(createAndDestroy.table_created_successfully);
@@ -454,60 +385,206 @@ TEST_CASE("Testing ThreadQueue select types functionality", "[queue]") {
         REQUIRE(result_create_columns);
 
         auto id = common::key_generator();
-        for (int j = 0; j < 100; ++j) {
+        for (int j = 0; j < size; ++j) {
             std::string query = "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id +
                                 "', '2020-10-12'," +
                                 std::to_string(j) + ", 2.2);";
             REQUIRE(dbManager.enqueue(query) == true);
         }
         REQUIRE(dbManager.queue_size() > 0);
+        size_t timeout = 100;
         while (dbManager.queue_size() > 0) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            timeout++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+            if (timeout >= 1000) {
+                break;
+            }
         }
         REQUIRE(dbManager.queue_size() == 0);
         dbManager.stop();
-        std::string select_query = "SELECT `name`,`dates` FROM " + createAndDestroy.table + " where `name` = '" + id + "';";
-        auto result = dbManager.select(select_query);
+        std::string select_query = "SELECT * FROM " + createAndDestroy.table + " where `name` = '" + id + "';";
+        auto result = dbManager.query_to_json(select_query);
         REQUIRE(!result.empty());  // Assume that the table is not empty
-        REQUIRE(result.size() == 100);
-        for (int i = 0; i < 100; ++i) {
+        REQUIRE(result.size() == size);
+        for (int i = 0; i < size; ++i) {
             REQUIRE(result[i]["name"] == id);
-            // TODO: Fix select
-//            REQUIRE(result[i]["dates"] == "2020-10-12");
-//            REQUIRE(result[i]["number"] == std::to_string(i));
-//            REQUIRE(result[i]["f"] == "2.2");
+            REQUIRE(result[i]["dates"] == "2020-10-12");
+            REQUIRE(result[i]["number"] == i);
+            // aproximate comparison
+            REQUIRE_THAT( result[i]["f"],
+                          Catch::Matchers::WithinRel(2.2, 0.001)
+                          && Catch::Matchers::WithinAbs(2.2, 2.200001) );
         }
     }
 
 
-//    SECTION("Testing updates ") {
-//        CreateAndDestroy createAndDestroy;
-//        REQUIRE(createAndDestroy.table_created_successfully);
-//        auto id = common::key_generator();
-//        for (int j = 0; j < 100; ++j) {
-//            REQUIRE(dbManager.enqueue(
-//                    "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id + "', '2020-10-12'," +
-//                    std::to_string(j) + ", 2.2);") == true);
-//        }
-//
-//        for (int j = 0; j < 100; ++j) {
-//            REQUIRE(dbManager.enqueue(
-//                    "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id + "', '2020-10-12'," +
-//                    std::to_string(j) + ", 2.2) ON CONFLICT (name,number) DO UPDATE SET f = 3.3;") == true);
-//        }
-//
-//        REQUIRE(dbManager.queue_size() > 0);
-//        std::this_thread::sleep_for(std::chrono::seconds(10));
-//        auto result = dbManager.select("SELECT * FROM " + createAndDestroy.table + " where name = '" + id + "';");
-//        REQUIRE(!result.empty());  // Assume that the table is not empty
-//        REQUIRE(result.size() == 100);
-//        for (int i = 0; i < 100; ++i) {
-//            REQUIRE(result[i]["name"] == id);
-//            REQUIRE(result[i]["dates"] == "2020-10-12");
-//            REQUIRE(result[i]["number"] == std::to_string(i));
-//            REQUIRE(result[i]["f"] == "3.3");
-//
-//        }
-//    }
+    SECTION("Testing updates ") {
+        CreateAndDestroy createAndDestroy;
+        REQUIRE(createAndDestroy.table_created_successfully);
+        std::map<std::string, std::string> columns;
+        columns["name"] = "VARCHAR(255) NOT NULL";
+        columns["number"] = "INT NOT NULL";
+        columns["f"] = "FLOAT NOT NULL";
+        columns["dates"] = "DATE NOT NULL";
+        bool result_create_columns = dbManager.add_columns_to_table(createAndDestroy.table, columns);
+        REQUIRE(result_create_columns);
+        std::vector<std::string> columns_unique = {"number"};
+        bool result_index = dbManager.create_index_unique(createAndDestroy.table, "id_unique", columns_unique);
+        REQUIRE(result_index);
+        auto id = common::key_generator();
 
+        for (int j = 0; j < size; ++j) {
+            std::string query = "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id +
+                                "', '2020-10-12'," + std::to_string(j) + ", 2.2);";
+            REQUIRE(dbManager.enqueue(query) == true);
+        }
+
+        for (int j = 0; j < size; ++j) {
+            std::string query = "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id +
+                                "', '2020-10-12'," + std::to_string(j) +
+                                ", 2.2) ON DUPLICATE KEY UPDATE f = 3.3";
+            REQUIRE(dbManager.enqueue(query, false) == true);
+        }
+
+        REQUIRE(dbManager.queue_size() > 0);
+        size_t timeout = 100;
+        while (dbManager.queue_size() > 0) {
+            timeout++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+            if (timeout >= 1000) {
+                break;
+            }
+        }
+        REQUIRE(dbManager.queue_size() == 0);
+
+
+        std::string select_query = "SELECT * FROM " + createAndDestroy.table + " where `name` = '" + id + "';";
+        auto result = dbManager.query_to_json(select_query);
+
+        REQUIRE(!result.empty());  // Assume that the table is not empty
+        REQUIRE(result.size() == size);
+        for (int i = 0; i < size; ++i) {
+            REQUIRE(result[i]["name"] == id);
+            REQUIRE(result[i]["dates"] == "2020-10-12");
+            REQUIRE(result[i]["number"] == i);
+            REQUIRE_THAT(result[i]["f"],
+                         Catch::Matchers::WithinRel(3.3, 0.001)
+                         && Catch::Matchers::WithinAbs(3.3, 3.300001));
+
+        }
+    }
+}
+
+TEST_CASE("Testing ThreadQueue select types functionality", "[queue]") {
+    setenv("MARIADB_MULTI_INSERT", "false", 1);
+    setenv("LOGLEVEL", "debug", 1);
+    size_t size = 10;
+    simple_mariadb::config::MariaDBConfig config;
+    MariaDBManager dbManager(config);
+    REQUIRE(dbManager.is_connected());
+    REQUIRE(dbManager.is_thread_running());
+
+
+    SECTION("Testing enqueue multi queries method") {
+
+        CreateAndDestroy createAndDestroy;
+        REQUIRE(createAndDestroy.table_created_successfully);
+
+        std::map<std::string, std::string> columns;
+        columns["name"] = "VARCHAR(255) NOT NULL";
+        columns["number"] = "INT NOT NULL";
+        columns["f"] = "FLOAT NOT NULL";
+        columns["dates"] = "DATE NOT NULL";
+        bool result_create_columns = dbManager.add_columns_to_table(createAndDestroy.table, columns);
+        REQUIRE(result_create_columns);
+
+        auto id = common::key_generator();
+        for (int j = 0; j < size; ++j) {
+            std::string query = "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id +
+                                "', '2020-10-12'," +
+                                std::to_string(j) + ", 2.2);";
+            REQUIRE(dbManager.enqueue(query) == true);
+        }
+        REQUIRE(dbManager.queue_size() > 0);
+        size_t timeout = 100;
+        while (dbManager.queue_size() > 0) {
+            timeout++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+            if (timeout >= 1000) {
+                break;
+            }
+        }
+        REQUIRE(dbManager.queue_size() == 0);
+        dbManager.stop();
+        std::string select_query = "SELECT * FROM " + createAndDestroy.table + " where `name` = '" + id + "';";
+        auto result = dbManager.query_to_json(select_query);
+        REQUIRE(!result.empty());  // Assume that the table is not empty
+        REQUIRE(result.size() == size);
+        for (int i = 0; i < size; ++i) {
+            REQUIRE(result[i]["name"] == id);
+            REQUIRE(result[i]["dates"] == "2020-10-12");
+            REQUIRE(result[i]["number"] == i);
+            // aproximate comparison
+            REQUIRE_THAT( result[i]["f"],
+                          Catch::Matchers::WithinRel(2.2, 0.001)
+                          && Catch::Matchers::WithinAbs(2.2, 2.200001) );
+        }
+    }
+
+
+    SECTION("Testing updates ") {
+        CreateAndDestroy createAndDestroy;
+        REQUIRE(createAndDestroy.table_created_successfully);
+        std::map<std::string, std::string> columns;
+        columns["name"] = "VARCHAR(255) NOT NULL";
+        columns["number"] = "INT NOT NULL";
+        columns["f"] = "FLOAT NOT NULL";
+        columns["dates"] = "DATE NOT NULL";
+        bool result_create_columns = dbManager.add_columns_to_table(createAndDestroy.table, columns);
+        REQUIRE(result_create_columns);
+        std::vector<std::string> columns_unique = {"number"};
+        bool result_index = dbManager.create_index_unique(createAndDestroy.table, "id_unique", columns_unique);
+        REQUIRE(result_index);
+        auto id = common::key_generator();
+
+        for (int j = 0; j < size; ++j) {
+            std::string query = "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id +
+                                "', '2020-10-12'," + std::to_string(j) + ", 2.2);";
+            REQUIRE(dbManager.enqueue(query) == true);
+        }
+
+        for (int j = 0; j < size; ++j) {
+            std::string query = "INSERT INTO " + createAndDestroy.table + " (name , dates, number, f) VALUES ('" + id +
+                                "', '2020-10-12'," + std::to_string(j) +
+                                ", 2.2) ON DUPLICATE KEY UPDATE f = 3.3";
+            REQUIRE(dbManager.enqueue(query, false) == true);
+        }
+
+        REQUIRE(dbManager.queue_size() > 0);
+        size_t timeout = 100;
+        while (dbManager.queue_size() > 0) {
+            timeout++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+            if (timeout >= 1000) {
+                break;
+            }
+        }
+        REQUIRE(dbManager.queue_size() == 0);
+
+
+        std::string select_query = "SELECT * FROM " + createAndDestroy.table + " where `name` = '" + id + "';";
+        auto result = dbManager.query_to_json(select_query);
+
+        REQUIRE(!result.empty());  // Assume that the table is not empty
+        REQUIRE(result.size() == size);
+        for (int i = 0; i < size; ++i) {
+            REQUIRE(result[i]["name"] == id);
+            REQUIRE(result[i]["dates"] == "2020-10-12");
+            REQUIRE(result[i]["number"] == i);
+            REQUIRE_THAT(result[i]["f"],
+                         Catch::Matchers::WithinRel(3.3, 0.001)
+                         && Catch::Matchers::WithinAbs(3.3, 3.300001));
+
+        }
+    }
 }
