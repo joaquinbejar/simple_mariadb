@@ -67,6 +67,7 @@ namespace simple_mariadb::config {
             checker_time = j.at("checker_time").get<int>();
 
         } catch (std::exception &e) {
+            logger->send<simple_logger::LogLevel::ERROR>("Error parsing MariaDBConfig: " + std::string(e.what()));
             throw simple_config::ConfigException(e.what());
         }
     }
