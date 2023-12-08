@@ -85,7 +85,7 @@ namespace simple_mariadb::config {
                "\", connecttimeout=\"" + m_connecttimeout +
                "\", sockettimeout=\"" + m_sockettimeout +
                "\", uri=\"" + uri +
-                "'}';
+                "'}'";
     }
 
     std::map<sql::SQLString, sql::SQLString> MariaDBConfig::get_options() {
