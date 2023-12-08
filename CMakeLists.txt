@@ -11,10 +11,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH})
 
 include(cmake/mariadbc.cmake)
 include(cmake/mariadbcpp.cmake)
-#include(cmake/common.cmake)
 include(cmake/simple_logger.cmake)
-#include(cmake/simple_config.cmake)
-
 
 set(MARIADBCPP_INCLUDE_DIRS "${MARIADBCPP_HEADER}")
 set(SIMPLE_MARIADB_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/include")
