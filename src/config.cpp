@@ -37,10 +37,10 @@ namespace simple_mariadb::config {
 
     json MariaDBConfig::to_json() const {
         json j;
-        j["m_hostname"] = m_hostname;
-        j["m_port"] = m_port;
-        j["m_user"] = m_user;
-        j["m_password"] = m_password;
+        j["hostname"] = m_hostname;
+        j["port"] = m_port;
+        j["user"] = m_user;
+        j["password"] = m_password;
         j["dbname"] = m_database;
         j["autoreconnect"] = m_autoreconnect;
         j["tcpkeepalive"] = m_tcpkeepalive;
@@ -54,10 +54,10 @@ namespace simple_mariadb::config {
 
     void MariaDBConfig::from_json(const json &j) {
         try {
-            m_hostname = j.at("m_hostname").get<std::string>();
-            m_port = j.at("m_port").get<int>();
-            m_user = j.at("m_user").get<std::string>();
-            m_password = j.at("m_password").get<std::string>();
+            m_hostname = j.at("hostname").get<std::string>();
+            m_port = j.at("port").get<int>();
+            m_user = j.at("user").get<std::string>();
+            m_password = j.at("password").get<std::string>();
             m_database = j.at("dbname").get<std::string>();
             m_autoreconnect = j.at("autoreconnect").get<std::string>();
             m_tcpkeepalive = j.at("tcpkeepalive").get<std::string>();

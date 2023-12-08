@@ -58,7 +58,7 @@ TEST_CASE("Use to_string", "[MariaDBConfig]") {
     simple_mariadb::config::MariaDBConfig config;
     REQUIRE(config.uri == "jdbc:mariadb://localhost:3306/database");
     REQUIRE(config.validate());
-    std::string expected_str = R"({"MariaDBConfig":{"autoreconnect":"true","checker_time":30,"connecttimeout":"30","dbname":"database","m_hostname":"localhost","m_password":"password","m_port":3306,"m_user":"user","multi_insert":false,"sockettimeout":"10000","tcpkeepalive":"true"}})";
+    std::string expected_str = R"({"MariaDBConfig":{"autoreconnect":"true","checker_time":30,"connecttimeout":"30","dbname":"database","hostname":"localhost","multi_insert":false,"password":"password","port":3306,"sockettimeout":"10000","tcpkeepalive":"true","user":"user"}})";
     REQUIRE(config.to_string() == expected_str);
 
 }
