@@ -72,7 +72,7 @@ namespace simple_mariadb::config {
     }
 
     std::string MariaDBConfig::to_string() const {
-        return (std::string) "MariaDBConfig{" +
+        return (std::string) "MariaDBConfig: {" +
                "hostname=\"" + m_hostname +
                "\", port=" + std::to_string(m_port) +
                ", user=\"" + m_user +
