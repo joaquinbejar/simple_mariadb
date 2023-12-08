@@ -26,7 +26,6 @@ target_link_libraries(test_client_simple_mariadb PRIVATE
         simple_config
         common
         simple_mariadb
-        ${MARIADBC_LIB}
         ${MARIADBCPP_LIB}
 )
 
@@ -49,6 +48,5 @@ target_link_libraries(test_config_simple_mariadb PRIVATE
         simple_config
         common
         simple_mariadb
-        ${MARIADBC_LIB}
         ${MARIADBCPP_LIB}
 )

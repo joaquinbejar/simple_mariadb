@@ -9,7 +9,6 @@ set(GITPASS "$ENV{GITPASS}")
 set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${mariadbcpp_SOURCE_DIR}/libmariadb/libmariadb)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH})
 
-include(cmake/mariadbc.cmake)
 include(cmake/mariadbcpp.cmake)
 include(cmake/simple_logger.cmake)
 
@@ -49,7 +48,6 @@ target_include_directories(simple_mariadb PUBLIC
 target_link_libraries(simple_mariadb
         PUBLIC
         pthread
-        ${MARIADBC_LIB}
         ${MARIADBCPP_LIB}
         simple_config
         simple_logger
