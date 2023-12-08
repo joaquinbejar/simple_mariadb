@@ -72,7 +72,7 @@ namespace simple_mariadb::config {
     }
 
     std::string MariaDBConfig::to_string() const {
-        return (std::string) "MariaDBConfig:" + this->to_json().dump() ;
+        return R"({"MariaDBConfig":)" + this->get_basic_string() + "}";
     }
 
     std::map<sql::SQLString, sql::SQLString> MariaDBConfig::get_options() {
