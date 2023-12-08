@@ -62,3 +62,23 @@ TEST_CASE("Use to_string", "[MariaDBConfig]") {
     REQUIRE(config.to_string() == expected_str);
 
 }
+
+TEST_CASE("Use to_json", "[MariaDBConfig]") {
+    setenv("MARIADB_HOSTNAME", "localhost", 1);
+    setenv("MARIADB_PORT", "3306", 1);
+    setenv("MARIADB_DATABASE", "", 1);
+    setenv("MARIADB_USER", "user", 1);
+    setenv("MARIADB_PASSWORD", "password", 1);
+    simple_mariadb::config::MariaDBConfig config;
+    SECTION("from_json method and key as param") {
+        json j = config.to_json();
+        j["hostname"] = "localhost";
+        j["dbname"] = "database";
+        j["user"] = "user";
+        j["password"] = "password";
+        REQUIRE_NOTHROW(config.from_json(j));
+        REQUIRE(config.uri == "jdbc:mariadb://localhost:3306/database");
+        REQUIRE(config.validate());
+
+    }
+}
