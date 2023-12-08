@@ -72,20 +72,7 @@ namespace simple_mariadb::config {
     }
 
     std::string MariaDBConfig::to_string() const {
-        return (std::string) "MariaDBConfig: {" +
-               "hostname=\"" + m_hostname +
-               "\", port=" + std::to_string(m_port) +
-               ", user=\"" + m_user +
-               "\", password=\"" + m_password +
-               "\", database=\"" + m_database +
-               ", multi_insert=" + std::to_string(multi_insert) +
-                ", checker_time=" + std::to_string(checker_time) +
-               ", autoreconnect=\"" + m_autoreconnect +
-               "\", tcpkeepalive=\"" + m_tcpkeepalive +
-               "\", connecttimeout=\"" + m_connecttimeout +
-               "\", sockettimeout=\"" + m_sockettimeout +
-               "\", uri=\"" + uri +
-                "'}'";
+        return (std::string) "MariaDBConfig:" + this->to_json().dump() ;
     }
 
     std::map<sql::SQLString, sql::SQLString> MariaDBConfig::get_options() {
