@@ -93,7 +93,9 @@ namespace simple_mariadb::client {
 
         bool ping();
 
-        size_t  get_error_counter();
+        size_t get_error_counter();
+
+        void clear_queue();
 
 
 

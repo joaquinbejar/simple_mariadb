@@ -557,5 +557,9 @@ namespace simple_mariadb::client {
         return error_counter;
     }
 
+    void MariaDBManager::clear_queue() {
+        m_queries.wipeout();
+    }
+
 }
 
