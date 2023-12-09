@@ -66,7 +66,7 @@ namespace simple_mariadb::client {
                 return false;
             }
         } else {
-            m_logger->send<simple_logger::LogLevel::DEBUG>("Connection is not defined");
+//            m_logger->send<simple_logger::LogLevel::DEBUG>("MariaDBManager Connection is not defined");
             return false;
         }
         return conn->isValid();
@@ -201,16 +201,16 @@ namespace simple_mariadb::client {
         m_checker_thread_is_running = true;
         std::this_thread::sleep_for(std::chrono::seconds(m_config.checker_time));
         while (m_checker_thread_is_running) {
-            m_logger->send<simple_logger::LogLevel::DEBUG>("Checker thread running");
+            m_logger->send<simple_logger::LogLevel::DEBUG>("MariaDBManager Checker thread running");
             if (!this->m_is_connected(m_conn_read)) {
                 m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
-                        "Checker Read Connection to database failed: " + m_config.uri);
+                        "MariaDBManager Checker Read Connection to database failed: " + m_config.uri);
                 std::lock_guard<std::mutex> lock(m_read_mutex);
                 m_get_connection(m_conn_read);
             }
             if (!this->m_is_connected(m_conn_write)) {
                 m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
-                        "Checker Write Connection to database failed: " + m_config.uri);
+                        "MariaDBManager Checker Write Connection to database failed: " + m_config.uri);
                 std::lock_guard<std::mutex> lock(m_write_mutex);
                 m_get_connection(m_conn_read);
             }
@@ -224,6 +224,7 @@ namespace simple_mariadb::client {
             std::unique_ptr<sql::Statement> stmt(m_conn_write->createStatement());
             stmt->execute(query);
         } catch (sql::SQLException &e) {
+            m_error_counter++;
             m_logger->send<simple_logger::LogLevel::ERROR>("INSERT failed: " + std::string(e.what()) + " QUERY: " +
                                                            query);
             return false;
@@ -548,6 +549,12 @@ namespace simple_mariadb::client {
             m_logger->send<simple_logger::LogLevel::ERROR>("create_index ERROR: " + table_name + " " + gc.what());
             return false;
         }
+    }
+
+    size_t  MariaDBManager::get_error_counter() {
+        size_t error_counter = m_error_counter;
+        m_error_counter = 0;
+        return error_counter;
     }
 
 }
