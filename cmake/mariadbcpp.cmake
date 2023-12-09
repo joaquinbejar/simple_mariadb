@@ -40,9 +40,16 @@ find_library(MARIADBCPP_LIB
         REQUIRED
         )
 
+find_library(MARIADBC_LIB
+        NAMES mariadb
+        PATHS ${mariadbcpp_BINARY_DIR}/libmariadb/libmariadb
+        REQUIRED
+)
+
 set(MARIADBCPP_INCLUDE ${mariadbcpp_SOURCE_DIR}/include CACHE INTERNAL "")
 if (CMAKE_DEBUG)
     message(STATUS "simple_mariadb/cmake mariadbcpp_SOURCE_DIR ${mariadbcpp_SOURCE_DIR}")
     message(STATUS "simple_mariadb/cmake MARIADBCPP_LIB ${MARIADBCPP_LIB}")
     message(STATUS "simple_mariadb/cmake MARIADBCPP_INCLUDE ${MARIADBCPP_INCLUDE}")
+    message(STATUS "simple_mariadb/cmake MARIADBC_LIB ${MARIADBC_LIB}")
 endif ()

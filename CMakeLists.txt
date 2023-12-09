@@ -49,6 +49,7 @@ target_link_libraries(simple_mariadb
         PUBLIC
         pthread
         ${MARIADBCPP_LIB}
+        ${MARIADBC_LIB}
         simple_config
         simple_logger
         common
