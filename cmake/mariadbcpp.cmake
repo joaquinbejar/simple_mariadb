@@ -1,7 +1,7 @@
 include(FetchContent)
 FetchContent_Declare(mariadbcpp
-        GIT_REPOSITORY https://github.com/mariadb-corporation/mariadb-connector-cpp.git
-        GIT_TAG 1.1.2
+        GIT_REPOSITORY https://github.com/joaquinbejar/mariadb-connector-cpp.git
+        GIT_TAG v0.1.0
         BUILD_ALWAYS 1
 )
 FetchContent_Populate(mariadbcpp)
@@ -9,7 +9,7 @@ FetchContent_Populate(mariadbcpp)
 if(NOT EXISTS "${MARIADBCPP_LIB}")
     message(STATUS "mariadbcpp library not found, building it")
     execute_process(
-            COMMAND ${CMAKE_COMMAND} -DBUILD_SHARED_LIBS=OFF -S ${mariadbcpp_SOURCE_DIR} -B ${mariadbcpp_BINARY_DIR}
+            COMMAND ${CMAKE_COMMAND} -DMARIADB_LINK_DYNAMIC=OFF -DWITH_UNIT_TESTS=OFF -S ${mariadbcpp_SOURCE_DIR} -B ${mariadbcpp_BINARY_DIR}
             WORKING_DIRECTORY ${mariadbcpp_SOURCE_DIR}
             COMMAND_ECHO STDOUT
             COMMAND_ECHO STDERR
@@ -40,16 +40,9 @@ find_library(MARIADBCPP_LIB
         REQUIRED
         )
 
-find_library(MARIADBC_LIB
-        NAMES mariadb
-        PATHS ${mariadbcpp_BINARY_DIR}/libmariadb/libmariadb
-        REQUIRED
-)
-
 set(MARIADBCPP_INCLUDE ${mariadbcpp_SOURCE_DIR}/include CACHE INTERNAL "")
 if (CMAKE_DEBUG)
     message(STATUS "simple_mariadb/cmake mariadbcpp_SOURCE_DIR ${mariadbcpp_SOURCE_DIR}")
     message(STATUS "simple_mariadb/cmake MARIADBCPP_LIB ${MARIADBCPP_LIB}")
     message(STATUS "simple_mariadb/cmake MARIADBCPP_INCLUDE ${MARIADBCPP_INCLUDE}")
-    message(STATUS "simple_mariadb/cmake MARIADBC_LIB ${MARIADBC_LIB}")
 endif ()
