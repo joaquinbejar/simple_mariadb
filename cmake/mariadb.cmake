@@ -30,7 +30,7 @@ if(NOT EXISTS "${MARIADB_LIB}")
         message(FATAL_ERROR "Error building mariadb ${result}")
     endif ()
 else()
-    message(STATUS "mariadb library found")
+    message(STATUS "mariadb library found: ${MARIADB_LIB}")
 endif()
 
 set(MARIADB_HEADER ${mariadb_SOURCE_DIR}/include CACHE INTERNAL "")
