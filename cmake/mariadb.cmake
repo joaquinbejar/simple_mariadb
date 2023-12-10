@@ -1,7 +1,7 @@
 include(FetchContent)
 FetchContent_Declare(mariadb
         GIT_REPOSITORY https://github.com/joaquinbejar/mariadb-connector-c.git
-        GIT_TAG 3.3-bejarjo-warning-fix
+        GIT_TAG v0.1.0
         BUILD_ALWAYS 1
 )
 FetchContent_Populate(mariadb)
