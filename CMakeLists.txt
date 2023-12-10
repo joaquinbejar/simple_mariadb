@@ -65,7 +65,7 @@ target_link_libraries(simple_mariadb
 
 set(SIMPLE_MARIADB_TESTS_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 option(NO_SIMPLE_MARIADB_TESTS "simple_mariadb Disable simple_mariadb tests" OFF)
-if (NOT NO_MARIADB_REST_API_TESTS)
+if (NOT NO_SIMPLE_MARIADB_TESTS)
     add_subdirectory(tests)
 endif ()
 
