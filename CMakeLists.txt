@@ -13,6 +13,12 @@ include(cmake/mariadb.cmake)
 include(cmake/mariadbcpp.cmake)
 include(cmake/simple_logger.cmake)
 
+find_package(OpenSSL REQUIRED)
+
+
+
+
+
 set(MARIADBCPP_INCLUDE_DIRS "${MARIADBCPP_HEADER}")
 set(SIMPLE_MARIADB_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -54,10 +60,11 @@ target_link_libraries(simple_mariadb
         simple_config
         simple_logger
         common
-)
+        OpenSSL::SSL OpenSSL::Crypto)
 
 set(SIMPLE_MARIADB_TESTS_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 option(NO_SIMPLE_MARIADB_TESTS "simple_mariadb Disable simple_mariadb tests" OFF)
 if (NOT NO_MARIADB_REST_API_TESTS)
     add_subdirectory(tests)
 endif ()
+
