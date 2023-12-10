@@ -29,7 +29,7 @@ target_link_libraries(test_client_simple_mariadb PRIVATE
         simple_mariadb
         ${MARIADB_LIB}
         ${MARIADBCPP_LIB}
-)
+        OpenSSL::SSL OpenSSL::Crypto)
 
 
 add_executable(test_config_simple_mariadb test_config.cpp)
@@ -52,4 +52,4 @@ target_link_libraries(test_config_simple_mariadb PRIVATE
         simple_mariadb
         ${MARIADB_LIB}
         ${MARIADBCPP_LIB}
-)
+        OpenSSL::SSL OpenSSL::Crypto)
