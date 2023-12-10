@@ -34,11 +34,14 @@ else()
 endif()
 
 set(MARIADB_HEADER ${mariadb_SOURCE_DIR}/include CACHE INTERNAL "")
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 find_library(MARIADB_LIB
         NAMES mariadb
         PATHS ${mariadb_BINARY_DIR}/libmariadb
         REQUIRED
-        )
+)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".so" ".dylib") # Reset to default
 
 
 set(MARIADB_INCLUDE ${mariadb_SOURCE_DIR}/include CACHE INTERNAL "")

@@ -34,11 +34,13 @@ else()
 endif()
 
 set(MARIADBCPP_HEADER ${mariadbcpp_SOURCE_DIR}/include CACHE INTERNAL "")
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 find_library(MARIADBCPP_LIB
         NAMES mariadbcpp
         PATHS ${mariadbcpp_BINARY_DIR}
         REQUIRED
         )
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".so" ".dylib") # Reset to default
 
 set(MARIADBCPP_INCLUDE ${mariadbcpp_SOURCE_DIR}/include CACHE INTERNAL "")
 if (CMAKE_DEBUG)
