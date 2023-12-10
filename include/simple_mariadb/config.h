@@ -9,7 +9,7 @@
 #include <simple_logger/logger.h>
 #include <common/common.h>
 #include <common/ip.h>
-#include <mariadb/conncpp.hpp>
+#include <conncpp.hpp>
 
 
 using json = nlohmann::json;

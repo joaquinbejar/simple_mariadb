@@ -6,10 +6,11 @@ if (CMAKE_DEBUG)
     message(STATUS "simple_mariadb/tests COMMON_INCLUDE: ${COMMON_INCLUDE}")
     message(STATUS "simple_mariadb/tests MARIADBCPP_HEADER: ${MARIADBCPP_HEADER}")
     message(STATUS "simple_mariadb/tests MARIADBCPP_LIB: ${MARIADBCPP_LIB}")
+    message(STATUS "simple_mariadb/tests MARIADB_LIB: ${MARIADB_LIB}")
 endif ()
 
-add_executable(test_client test_client.cpp)
-target_include_directories(test_client
+add_executable(test_client_simple_mariadb test_client.cpp)
+target_include_directories(test_client_simple_mariadb
         PRIVATE
         ${SIMPLE_MARIADB_INCLUDE}
         ${SIMPLE_COLOR_INCLUDE}
@@ -20,19 +21,19 @@ target_include_directories(test_client
         ${MARIADBCPP_HEADER}
 )
 
-target_link_libraries(test_client PRIVATE Catch2::Catch2WithMain)
-target_link_libraries(test_client PRIVATE
+target_link_libraries(test_client_simple_mariadb PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(test_client_simple_mariadb PRIVATE
         simple_logger
         simple_config
         common
         simple_mariadb
-        ${MARIADBC_LIB}
+        ${MARIADB_LIB}
         ${MARIADBCPP_LIB}
 )
 
 
-add_executable(test_config test_config.cpp)
-target_include_directories(test_config
+add_executable(test_config_simple_mariadb test_config.cpp)
+target_include_directories(test_config_simple_mariadb
         PRIVATE
         ${SIMPLE_MARIADB_INCLUDE}
         ${SIMPLE_COLOR_INCLUDE}
@@ -43,12 +44,12 @@ target_include_directories(test_config
         ${MARIADBCPP_HEADER}
 )
 
-target_link_libraries(test_config PRIVATE Catch2::Catch2WithMain)
-target_link_libraries(test_config PRIVATE
+target_link_libraries(test_config_simple_mariadb PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(test_config_simple_mariadb PRIVATE
         simple_logger
         simple_config
         common
         simple_mariadb
-        ${MARIADBC_LIB}
+        ${MARIADB_LIB}
         ${MARIADBCPP_LIB}
 )

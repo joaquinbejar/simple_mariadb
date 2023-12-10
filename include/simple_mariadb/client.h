@@ -93,6 +93,12 @@ namespace simple_mariadb::client {
 
         bool ping();
 
+        size_t get_error_counter();
+
+        void clear_queue();
+
+
+
     private:
         bool m_is_connected(std::shared_ptr<sql::Connection> &conn);
 
@@ -120,6 +126,7 @@ namespace simple_mariadb::client {
         common::ThreadQueue<std::string> m_queries;
         std::atomic<bool> m_queue_thread_is_running;
         std::atomic<bool> m_checker_thread_is_running;
+        std::atomic<size_t > m_error_counter = 0; ///< Counter for errors encountered.
         std::thread m_queue_thread;
         std::thread m_checker_thread;
         bool m_multi_insert = m_config.multi_insert;

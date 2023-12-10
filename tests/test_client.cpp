@@ -167,10 +167,7 @@ TEST_CASE("Testing MariaDBManager installation", "[queue]") {
         simple_mariadb::config::MariaDBConfig config = get_default_config();
         REQUIRE(config.validate());
         config.logger->send<simple_logger::LogLevel::DEBUG>(config.to_string());
-        REQUIRE(config.to_string() == "MariaDBConfig{hostname=localhost, port=3306, user=user, password=password, "
-                                      "database=database, multi_insert=1, checker_time=30, autoreconnect=true, "
-                                      "tcpkeepalive=true, connecttimeout=30, sockettimeout=10000, "
-                                      "uri=jdbc:mariadb://localhost:3306/database}");
+        REQUIRE(config.to_string() == R"({"MariaDBConfig":{"autoreconnect":"true","checker_time":30,"connecttimeout":"30","dbname":"database","hostname":"localhost","multi_insert":true,"password":"password","port":3306,"sockettimeout":"10000","tcpkeepalive":"true","user":"user"}})");
     }
 }
 
