@@ -41,6 +41,7 @@ if (CMAKE_DEBUG)
     message(STATUS "simple_mariadb MARIADBCPP_HEADER: ${MARIADBCPP_HEADER}")
     message(STATUS "simple_mariadb MARIADBCPP_LIB: ${MARIADBCPP_LIB}")
     message(STATUS "simple_mariadb MARIADB_LIB: ${MARIADB_LIB}")
+    message(STATUS "simple_mariadb MARIADBCLIENT_LIB: ${MARIADBCLIENT_LIB}")
 endif ()
 
 target_include_directories(simple_mariadb PUBLIC
