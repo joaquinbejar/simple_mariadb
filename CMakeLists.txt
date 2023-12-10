@@ -41,6 +41,7 @@ if (CMAKE_DEBUG)
     message(STATUS "simple_mariadb MARIADBCPP_HEADER: ${MARIADBCPP_HEADER}")
     message(STATUS "simple_mariadb MARIADBCPP_LIB: ${MARIADBCPP_LIB}")
     message(STATUS "simple_mariadb MARIADB_LIB: ${MARIADB_LIB}")
+    message(STATUS "simple_mariadb MARIADBCLIENT_LIB: ${MARIADBCLIENT_LIB}")
 endif ()
 
 target_include_directories(simple_mariadb PUBLIC
@@ -64,7 +65,7 @@ target_link_libraries(simple_mariadb
 
 set(SIMPLE_MARIADB_TESTS_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 option(NO_SIMPLE_MARIADB_TESTS "simple_mariadb Disable simple_mariadb tests" OFF)
-if (NOT NO_MARIADB_REST_API_TESTS)
+if (NOT NO_SIMPLE_MARIADB_TESTS)
     add_subdirectory(tests)
 endif ()
 
