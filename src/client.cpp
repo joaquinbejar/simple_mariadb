@@ -128,6 +128,8 @@ namespace simple_mariadb::client {
     }
 
     bool MariaDBManager::enqueue(const std::string &query, bool check_correctness) {
+        if (query.empty())
+            return true;
         if (!check_correctness)
             return m_queries.enqueue(query);
         if (is_insert_or_replace_query_correct(query)) {
