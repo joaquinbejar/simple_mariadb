@@ -219,6 +219,9 @@ namespace simple_mariadb::client {
     }
 
     bool MariaDBManager::m_insert(const std::string &query) {
+        if (query.empty()) {
+            return true;
+        }
         try {
             std::lock_guard<std::mutex> lock(m_write_mutex);
             std::unique_ptr<sql::Statement> stmt(m_conn_write->createStatement());
@@ -240,7 +243,9 @@ namespace simple_mariadb::client {
 
             multi_query << "START TRANSACTION;";
             for (const auto &query: queries) {
-                if (!query.empty() && query.back() == ';') {
+                if (query.empty())
+                    continue;
+                if (query.back() == ';') {
                     multi_query << query;
                 } else {
                     multi_query << query << ";";
