@@ -135,7 +135,7 @@ namespace simple_mariadb::client {
         if (is_insert_or_replace_query_correct(query)) {
             return m_queries.enqueue(query);
         } else {
-            m_logger->send<simple_logger::LogLevel::ERROR>("Query is not correct: " + query);
+            m_logger->send<simple_logger::LogLevel::ERROR>("Query is not correct: <" + query + ">");
         }
         return false;
     }
@@ -230,8 +230,8 @@ namespace simple_mariadb::client {
             stmt->execute(query);
         } catch (sql::SQLException &e) {
             m_error_counter++;
-            m_logger->send<simple_logger::LogLevel::ERROR>("INSERT failed: " + std::string(e.what()) + " QUERY: " +
-                                                           query);
+            m_logger->send<simple_logger::LogLevel::ERROR>("INSERT failed: " + std::string(e.what()) + " QUERY: <" +
+                                                           query + ">");
             return false;
         }
         return true;
