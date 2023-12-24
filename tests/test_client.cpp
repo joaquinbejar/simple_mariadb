@@ -161,6 +161,34 @@ simple_mariadb::config::MariaDBConfig get_env_config() {
     return config;
 }
 
+TEST_CASE("Testing is_insert_or_replace_query_correct", "[queue]") {
+
+    SECTION("Right queries") {
+        std::vector<std::string> queries = {
+                R"(REPLACE INTO `OHLC` (`ticker`, `open`, `high`, `low`, `close`, `transactions`, `otc`, `timestamp`, `volume`, `volume_weighted_price`) VALUES ('ACAQ', 9.4, 9.95, 8, 9.75, 996, 0, 1697486400000, 32962, 9.1733);)",
+                R"(INSERT IGNORE INTO `Tickers` (`active`, `cik`, `composite_figi`, `currency_name`, `last_updated_utc`, `locale`, `market`, `name`, `primary_exchange`, `share_class_figi`, `ticker`, `type`) VALUES ('true', '0001914023', 'BBG0190WQ3Q5', 'usd', '2023-12-22T00:00:00Z', 'us', 'stocks', 'Acri Capital Acquisition Corporation Warrant', 'XNAS', NULL, 'ACACW', 'WARRANT');)",
+                R"(INSERT INTO Tickers (`active`, `cik`, `composite_figi`, `currency_name`, `last_updated_utc`, `locale`, `market`, `name`, `primary_exchange`, `share_class_figi`, `ticker`, `type`) VALUES ('true', '0001914023', 'BBG0190WQ3Q5', 'usd', '2023-12-22T00:00:00Z', 'us', 'stocks', 'Acri Capital Acquisition Corporation Warrant', 'XNAS', NULL, 'ACACW', 'WARRANT');)",
+                R"(insert into Tickers (`active`, `cik`, `composite_figi`, `currency_name`, `last_updated_utc`, `locale`, `market`, `name`, `primary_exchange`, `share_class_figi`, `ticker`, `type`) VALUES ('true', '0001914023', 'BBG0190WQ3Q5', 'usd', '2023-12-22T00:00:00Z', 'us', 'stocks', 'Acri Capital Acquisition Corporation Warrant', 'XNAS', NULL, 'ACACW', 'WARRANT');)",
+                R"(replace into `OHLC` (`ticker`, `open`, `high`, `low`, `close`, `transactions`, `otc`, `timestamp`, `volume`, `volume_weighted_price`) VALUES ('ACAQ', 9.4, 9.95, 8, 9.75, 996, 0, 1697486400000, 32962, 9.1733);)",
+                R"(INSERT INTO Tickers (active, `cik`, `composite_figi`, `currency_name`, `last_updated_utc`, `locale`, `market`, `name`, `primary_exchange`, `share_class_figi`, `ticker`, `type`) VALUES ('true', '0001914023', 'BBG0190WQ3Q5', 'usd', '2023-12-22T00:00:00Z', 'us', 'stocks', 'Acri Capital Acquisition Corporation Warrant', 'XNAS', NULL, 'ACACW', 'WARRANT');)"
+        };
+        for (const auto &query : queries) {
+            REQUIRE(is_insert_or_replace_query_correct(query) == true);
+        }
+    }
+
+    SECTION("Wrong Queries") {
+        std::vector<std::string> queries = {
+                R"(INSERT INTO (`active`, `cik`, `composite_figi`, `currency_name`, `last_updated_utc`, `locale`, `market`, `name`, `primary_exchange`, `share_class_figi`, `ticker`, `type`) VALUES ('true', '0001914023', 'BBG0190WQ3Q5', 'usd', '2023-12-22T00:00:00Z', 'us', 'stocks', 'Acri Capital Acquisition Corporation Warrant', 'XNAS', NULL, 'ACACW', 'WARRANT');)",
+                R"(INSERT INTO Tickers active, `cik`, `composite_figi`, `currency_name`, `last_updated_utc`, `locale`, `market`, `name`, `primary_exchange`, `share_class_figi`, `ticker`, `type`) VALUES ('true', '0001914023', 'BBG0190WQ3Q5', 'usd', '2023-12-22T00:00:00Z', 'us', 'stocks', 'Acri Capital Acquisition Corporation Warrant', 'XNAS', NULL, 'ACACW', 'WARRANT');)"
+        };
+        for (const auto &query : queries) {
+            REQUIRE_FALSE(is_insert_or_replace_query_correct(query) == true);
+        }
+    }
+}
+
+
 TEST_CASE("Testing MariaDBManager installation", "[queue]") {
 
     SECTION("Fail connection to localhost") {

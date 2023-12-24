@@ -15,6 +15,8 @@
 
 namespace simple_mariadb::client {
 
+    typedef std::string Query;
+
     enum class InsertType {
         INSERT,
         REPLACE,
@@ -32,9 +34,8 @@ namespace simple_mariadb::client {
     // with the corresponding string for a given InsertType
     void replace_insert_type(std::string &query, const InsertType &insert_type);
 
-
     const std::regex QUERYREGEX(
-            R"(^\s*(INSERT|REPLACE)\s+INTO\s+[a-zA-Z_][a-zA-Z_0-9]*\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)\s*;?\s*$)",
+            R"(^\s*(INSERT(\s+IGNORE)?|REPLACE)\s+INTO\s+`?[a-zA-Z_][a-zA-Z_0-9]*`?\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)\s*;?\s*$)",
             std::regex_constants::icase
     );
 
@@ -98,7 +99,6 @@ namespace simple_mariadb::client {
         void clear_queue();
 
 
-
     private:
         bool m_is_connected(std::shared_ptr<sql::Connection> &conn);
 
@@ -123,10 +123,10 @@ namespace simple_mariadb::client {
 
         simple_mariadb::config::MariaDBConfig &m_config;
         std::shared_ptr<simple_logger::Logger> m_logger = m_config.logger;
-        common::ThreadQueue<std::string> m_queries;
+        common::ThreadQueue<Query> m_queries;
         std::atomic<bool> m_queue_thread_is_running;
         std::atomic<bool> m_checker_thread_is_running;
-        std::atomic<size_t > m_error_counter = 0; ///< Counter for errors encountered.
+        std::atomic<size_t> m_error_counter = 0; ///< Counter for errors encountered.
         std::thread m_queue_thread;
         std::thread m_checker_thread;
         bool m_multi_insert = m_config.multi_insert;
