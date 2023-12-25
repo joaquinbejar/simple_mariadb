@@ -168,7 +168,8 @@ namespace simple_mariadb::client {
         while (m_queue_thread_is_running) {
 //            m_logger->send<simple_logger::LogLevel::DEBUG>("Queue thread running");
             if (!m_is_connected(m_conn_write)) {
-                m_logger->send<simple_logger::LogLevel::INFORMATIONAL>("Thread Connection to database failed: " + m_config.uri);
+                m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
+                        "Thread Connection to database failed: " + m_config.uri);
                 // sleep for 1 second
                 std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 m_get_connection(m_conn_write);
@@ -229,9 +230,13 @@ namespace simple_mariadb::client {
             std::unique_ptr<sql::Statement> stmt(m_conn_write->createStatement());
             stmt->execute(query);
         } catch (sql::SQLException &e) {
+            if (e.getErrorCode() == 1452) {
+                return true;
+            }
             m_error_counter++;
-            m_logger->send<simple_logger::LogLevel::ERROR>("INSERT failed: " + std::string(e.what()) + " QUERY: <" +
-                                                           query + ">");
+            m_logger->send<simple_logger::LogLevel::ERROR>(
+                    std::to_string(e.getErrorCode()) + " INSERT failed: " + std::string(e.what()) + " QUERY: <" +
+                    query + ">");
             return false;
         }
         return true;
@@ -558,7 +563,7 @@ namespace simple_mariadb::client {
         }
     }
 
-    size_t  MariaDBManager::get_error_counter() {
+    size_t MariaDBManager::get_error_counter() {
         size_t error_counter = m_error_counter;
         m_error_counter = 0;
         return error_counter;
