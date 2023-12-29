@@ -5,20 +5,19 @@
 #include <simple_logger/logger.h>
 #include <simple_config/config.h>
 #include <simple_mariadb/client.h>
-#include <common/dates.h>
+#include <common/sql_utils.h>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <string>
 #include <map>
 #include <random>
-#include <chrono>
 #include <utility>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 // ---------------------------------------------------------------------------------------------------
 using simple_mariadb::client::MariaDBManager;
-using simple_mariadb::client::is_insert_or_replace_query_correct;
-using simple_mariadb::client::InsertType;
+using ::common::sql_utils::is_insert_or_replace_query_correct;
+using ::common::sql_utils::InsertType;
 
 simple_mariadb::config::MariaDBConfig global_config;
 
