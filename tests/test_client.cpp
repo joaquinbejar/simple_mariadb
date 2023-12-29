@@ -5,20 +5,19 @@
 #include <simple_logger/logger.h>
 #include <simple_config/config.h>
 #include <simple_mariadb/client.h>
-#include <common/dates.h>
+#include <common/sql_utils.h>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <string>
 #include <map>
 #include <random>
-#include <chrono>
 #include <utility>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 // ---------------------------------------------------------------------------------------------------
 using simple_mariadb::client::MariaDBManager;
-using simple_mariadb::client::::common::sql_utils::is_insert_or_replace_query_correct;
-using simple_mariadb::client::::common::sql_utils::InsertType;
+using ::common::sql_utils::is_insert_or_replace_query_correct;
+using ::common::sql_utils::InsertType;
 
 simple_mariadb::config::MariaDBConfig global_config;
 
@@ -161,7 +160,7 @@ simple_mariadb::config::MariaDBConfig get_env_config() {
     return config;
 }
 
-TEST_CASE("Testing ::common::sql_utils::is_insert_or_replace_query_correct", "[queue]") {
+TEST_CASE("Testing is_insert_or_replace_query_correct", "[queue]") {
 
     SECTION("Right queries") {
         std::vector<std::string> queries = {
@@ -174,7 +173,7 @@ TEST_CASE("Testing ::common::sql_utils::is_insert_or_replace_query_correct", "[q
                 R"(INSERT INTO Tickers (active, `cik`, `composite_figi`, `currency_name`, `last_updated_utc`, `locale`, `market`, `name`, `primary_exchange`, `share_class_figi`, `ticker`, `type`) VALUES ('true', '0001914023', 'BBG0190WQ3Q5', 'usd', '2023-12-22T00:00:00Z', 'us', 'stocks', 'Acri Capital Acquisition Corporation Warrant', 'XNAS', NULL, 'ACACW', 'WARRANT');)"
         };
         for (const auto &query : queries) {
-            REQUIRE(::common::sql_utils::is_insert_or_replace_query_correct(query) == true);
+            REQUIRE(is_insert_or_replace_query_correct(query) == true);
         }
     }
 
@@ -184,7 +183,7 @@ TEST_CASE("Testing ::common::sql_utils::is_insert_or_replace_query_correct", "[q
                 R"(INSERT INTO Tickers active, `cik`, `composite_figi`, `currency_name`, `last_updated_utc`, `locale`, `market`, `name`, `primary_exchange`, `share_class_figi`, `ticker`, `type`) VALUES ('true', '0001914023', 'BBG0190WQ3Q5', 'usd', '2023-12-22T00:00:00Z', 'us', 'stocks', 'Acri Capital Acquisition Corporation Warrant', 'XNAS', NULL, 'ACACW', 'WARRANT');)"
         };
         for (const auto &query : queries) {
-            REQUIRE_FALSE(::common::sql_utils::is_insert_or_replace_query_correct(query) == true);
+            REQUIRE_FALSE(is_insert_or_replace_query_correct(query) == true);
         }
     }
 }
@@ -236,17 +235,17 @@ TEST_CASE("Testing ThreadQueue single-insert functionality", "[queue]") {
     }
 }
 
-TEST_CASE("Replaces based on ::common::sql_utils::InsertType::REPLACE", "[replace_insert_type]") {
+TEST_CASE("Replaces based on InsertType::REPLACE", "[replace_insert_type]") {
 
     SECTION("Insert to Replace") {
         std::string query1 = "INSERT INTO table_name (column1, column2) VALUES (value1, value2)";
         std::string query2 = "insert into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "INSERT  into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " insert  INTO  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::REPLACE);
+        replace_insert_type(query1, InsertType::REPLACE);
+        replace_insert_type(query2, InsertType::REPLACE);
+        replace_insert_type(query3, InsertType::REPLACE);
+        replace_insert_type(query4, InsertType::REPLACE);
         REQUIRE(query1 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
@@ -258,10 +257,10 @@ TEST_CASE("Replaces based on ::common::sql_utils::InsertType::REPLACE", "[replac
         std::string query2 = "replace into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "REPLACE  into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " replace  INTO  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::REPLACE);
+        replace_insert_type(query1, InsertType::REPLACE);
+        replace_insert_type(query2, InsertType::REPLACE);
+        replace_insert_type(query3, InsertType::REPLACE);
+        replace_insert_type(query4, InsertType::REPLACE);
         REQUIRE(query1 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
@@ -273,10 +272,10 @@ TEST_CASE("Replaces based on ::common::sql_utils::InsertType::REPLACE", "[replac
         std::string query2 = "insert ignore into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "INSERT  ignore into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " insert  IGNORE  into  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::REPLACE);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::REPLACE);
+        replace_insert_type(query1, InsertType::REPLACE);
+        replace_insert_type(query2, InsertType::REPLACE);
+        replace_insert_type(query3, InsertType::REPLACE);
+        replace_insert_type(query4, InsertType::REPLACE);
         REQUIRE(query1 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "REPLACE INTO table_name (column1, column2) VALUES (value1, value2)");
@@ -284,17 +283,17 @@ TEST_CASE("Replaces based on ::common::sql_utils::InsertType::REPLACE", "[replac
     }
 }
 
-TEST_CASE("Replaces based on ::common::sql_utils::InsertType::IGNORE", "[replace_insert_type]") {
+TEST_CASE("Replaces based on InsertType::IGNORE", "[replace_insert_type]") {
 
     SECTION("Insert to IGNORE") {
         std::string query1 = "INSERT INTO table_name (column1, column2) VALUES (value1, value2)";
         std::string query2 = "insert into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "INSERT  into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " insert  INTO  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::IGNORE);
+        replace_insert_type(query1, InsertType::IGNORE);
+        replace_insert_type(query2, InsertType::IGNORE);
+        replace_insert_type(query3, InsertType::IGNORE);
+        replace_insert_type(query4, InsertType::IGNORE);
         REQUIRE(query1 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
@@ -306,10 +305,10 @@ TEST_CASE("Replaces based on ::common::sql_utils::InsertType::IGNORE", "[replace
         std::string query2 = "replace into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "REPLACE  into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " replace  INTO  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::IGNORE);
+        replace_insert_type(query1, InsertType::IGNORE);
+        replace_insert_type(query2, InsertType::IGNORE);
+        replace_insert_type(query3, InsertType::IGNORE);
+        replace_insert_type(query4, InsertType::IGNORE);
         REQUIRE(query1 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
@@ -321,10 +320,10 @@ TEST_CASE("Replaces based on ::common::sql_utils::InsertType::IGNORE", "[replace
         std::string query2 = "insert ignore into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "INSERT  ignore into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " insert  IGNORE  into  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::IGNORE);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::IGNORE);
+        replace_insert_type(query1, InsertType::IGNORE);
+        replace_insert_type(query2, InsertType::IGNORE);
+        replace_insert_type(query3, InsertType::IGNORE);
+        replace_insert_type(query4, InsertType::IGNORE);
         REQUIRE(query1 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "INSERT IGNORE INTO table_name (column1, column2) VALUES (value1, value2)");
@@ -332,17 +331,17 @@ TEST_CASE("Replaces based on ::common::sql_utils::InsertType::IGNORE", "[replace
     }
 }
 
-TEST_CASE("Replaces based on ::common::sql_utils::InsertType::INSERT", "[replace_insert_type]") {
+TEST_CASE("Replaces based on InsertType::INSERT", "[replace_insert_type]") {
 
     SECTION("Insert to INSERT") {
         std::string query1 = "INSERT INTO table_name (column1, column2) VALUES (value1, value2)";
         std::string query2 = "insert into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "INSERT  into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " insert  INTO  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::INSERT);
+        replace_insert_type(query1, InsertType::INSERT);
+        replace_insert_type(query2, InsertType::INSERT);
+        replace_insert_type(query3, InsertType::INSERT);
+        replace_insert_type(query4, InsertType::INSERT);
         REQUIRE(query1 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
@@ -354,10 +353,10 @@ TEST_CASE("Replaces based on ::common::sql_utils::InsertType::INSERT", "[replace
         std::string query2 = "replace into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "REPLACE  into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " replace  INTO  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::INSERT);
+        replace_insert_type(query1, InsertType::INSERT);
+        replace_insert_type(query2, InsertType::INSERT);
+        replace_insert_type(query3, InsertType::INSERT);
+        replace_insert_type(query4, InsertType::INSERT);
         REQUIRE(query1 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
@@ -369,10 +368,10 @@ TEST_CASE("Replaces based on ::common::sql_utils::InsertType::INSERT", "[replace
         std::string query2 = "insert ignore into table_name (column1, column2) VALUES (value1, value2)";
         std::string query3 = "INSERT  ignore into table_name (column1, column2) VALUES (value1, value2)";
         std::string query4 = " insert  IGNORE  into  table_name (column1, column2) VALUES (value1, value2)";
-        replace_insert_type(query1, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query2, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query3, ::common::sql_utils::InsertType::INSERT);
-        replace_insert_type(query4, ::common::sql_utils::InsertType::INSERT);
+        replace_insert_type(query1, InsertType::INSERT);
+        replace_insert_type(query2, InsertType::INSERT);
+        replace_insert_type(query3, InsertType::INSERT);
+        replace_insert_type(query4, InsertType::INSERT);
         REQUIRE(query1 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query2 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
         REQUIRE(query3 == "INSERT INTO table_name (column1, column2) VALUES (value1, value2)");
