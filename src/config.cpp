@@ -48,6 +48,8 @@ namespace simple_mariadb::config {
         j["sockettimeout"] = m_sockettimeout;
         j["multi_insert"] = multi_insert;
         j["checker_time"] = checker_time;
+        j["queue_size"] = queue_size;
+        j["queue_timeout"] = queue_timeout;
 
         return j;
     }
@@ -66,6 +68,8 @@ namespace simple_mariadb::config {
             multi_insert = j.at("multi_insert").get<bool>();
             checker_time = j.at("checker_time").get<int>();
             uri = "jdbc:mariadb://" + m_hostname + ":" + std::to_string(m_port) + "/" + m_database;
+            queue_size = j.at("queue_size").get<int>();
+            queue_timeout = j.at("queue_timeout").get<int>();
 
         } catch (std::exception &e) {
             logger->send<simple_logger::LogLevel::CRITICAL>("Error parsing MariaDBConfig: " + std::string(e.what()));

@@ -99,7 +99,8 @@ namespace simple_mariadb::client {
 
         simple_mariadb::config::MariaDBConfig &m_config;
         std::shared_ptr<simple_logger::Logger> m_logger = m_config.logger;
-        common::ThreadQueue<Query> m_queries;
+        common::ThreadQueueWithMaxSize<Query> m_queries = common::ThreadQueueWithMaxSize<Query>(m_config.queue_size,
+                                                                                                m_config.queue_timeout);
         std::atomic<bool> m_queue_thread_is_running;
         std::atomic<bool> m_checker_thread_is_running;
         std::atomic<size_t> m_error_counter = 0; ///< Counter for errors encountered.
