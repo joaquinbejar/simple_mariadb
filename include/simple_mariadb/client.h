@@ -17,6 +17,9 @@
 namespace simple_mariadb::client {
 
     typedef std::string Query;
+    typedef ::common::ThreadQueueWithMaxSize<Query> Queue;
+    typedef ::common::Stats Stats;
+//    typedef ::common::ThreadQueue<Query> Queue;
 
     class MariaDBManager {
     public:
@@ -74,6 +77,8 @@ namespace simple_mariadb::client {
 
         void clear_queue();
 
+        Stats get_stats();
+
 
     private:
         bool m_is_connected(std::shared_ptr<sql::Connection> &conn);
@@ -99,7 +104,9 @@ namespace simple_mariadb::client {
 
         simple_mariadb::config::MariaDBConfig &m_config;
         std::shared_ptr<simple_logger::Logger> m_logger = m_config.logger;
-        common::ThreadQueue<Query> m_queries;
+        Queue m_queries = Queue(m_config.queue_size, m_config.queue_timeout);
+//        Queue m_queries = Queue(m_config.queue_size);
+//        Queue m_queries = Queue( m_config.queue_timeout);
         std::atomic<bool> m_queue_thread_is_running;
         std::atomic<bool> m_checker_thread_is_running;
         std::atomic<size_t> m_error_counter = 0; ///< Counter for errors encountered.

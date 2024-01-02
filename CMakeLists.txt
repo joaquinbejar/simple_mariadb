@@ -16,9 +16,6 @@ include(cmake/simple_logger.cmake)
 find_package(OpenSSL REQUIRED)
 
 
-
-
-
 set(MARIADBCPP_INCLUDE_DIRS "${MARIADBCPP_HEADER}")
 set(SIMPLE_MARIADB_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 

@@ -53,6 +53,8 @@ namespace simple_mariadb::config {
 
         bool multi_insert = common::get_env_variable_bool("MARIADB_MULTI_INSERT", false);
         int checker_time = common::get_env_variable_int("CHECKER_TIME", 30);
+        size_t queue_size = common::get_env_variable_int("MARIADB_QUEUE_SIZE", 30000);
+        size_t queue_timeout = common::get_env_variable_int("MARIADB_QUEUE_TIMEOUT", 2);
 
         std::map<sql::SQLString, sql::SQLString> get_options();
 
@@ -66,9 +68,6 @@ namespace simple_mariadb::config {
         std::string m_tcpkeepalive = common::get_env_variable_string("MARIADB_TCPKEEPALIVE", "true");
         std::string m_connecttimeout = common::get_env_variable_string("MARIADB_CONNECTTIMEOUT", "30");
         std::string m_sockettimeout = common::get_env_variable_string("MARIADB_SOCKETTIMEOUT", "10000");
-
-
-
 
     public:
         std::string uri = "jdbc:mariadb://" + m_hostname + ":" + std::to_string(m_port) + "/" + m_database;

@@ -10,7 +10,6 @@ namespace simple_mariadb::client {
             m_config(config),
             m_queue_thread(&MariaDBManager::run, this),
             m_checker_thread(&MariaDBManager::m_run_checker, this) {
-        m_logger->send<simple_logger::LogLevel::DEBUG>("MariaDBManager constructor");
         if (!m_config.validate()) {
             this->m_join_threads();
             m_logger->send<simple_logger::LogLevel::ERROR>("MariaDBConfig is not valid");
@@ -38,7 +37,6 @@ namespace simple_mariadb::client {
                 return false;
             }
         } else {
-//            m_logger->send<simple_logger::LogLevel::DEBUG>("MariaDBManager Connection is not defined");
             return false;
         }
         return conn->isValid();
@@ -46,7 +44,6 @@ namespace simple_mariadb::client {
 
     void MariaDBManager::m_get_connection(std::shared_ptr<sql::Connection> &conn) {
         if (this->m_is_connected(conn)) {
-            m_logger->send<simple_logger::LogLevel::DEBUG>("m_get_connection MariaDB client already connected");
             return;
         }
         try {
@@ -86,8 +83,6 @@ namespace simple_mariadb::client {
 
         std::vector<std::map<std::string, std::string>> result;
         json json_result = this->query_to_json(query);
-
-        std::cout << json_result.dump(4) << std::endl;
         result.reserve(json_result.size());
         for (auto &row: json_result) {
             std::map<std::string, std::string> map_row;
@@ -100,15 +95,18 @@ namespace simple_mariadb::client {
     }
 
     bool MariaDBManager::enqueue(const std::string &query, bool check_correctness) {
-        if (query.empty())
+        if (query.empty()) {
             return true;
-        if (!check_correctness)
+        }
+        if (!check_correctness) {
             return m_queries.enqueue(query);
+        }
         if (::common::sql_utils::is_insert_or_replace_query_correct(query)) {
             return m_queries.enqueue(query);
         } else {
             m_logger->send<simple_logger::LogLevel::ERROR>("Query is not correct: <" + query + ">");
         }
+        m_logger->send<simple_logger::LogLevel::ERROR>("Enqueuing Error: " + query);
         return false;
     }
 
@@ -131,14 +129,12 @@ namespace simple_mariadb::client {
     }
 
     void MariaDBManager::run() {
-        m_queue_thread_is_running = true;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
         {
             std::lock_guard<std::mutex> lock(m_write_mutex);
             this->m_get_connection(m_conn_write);
         }
+        m_queue_thread_is_running = true;
         while (m_queue_thread_is_running) {
-//            m_logger->send<simple_logger::LogLevel::DEBUG>("Queue thread running");
             if (!m_is_connected(m_conn_write)) {
                 m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
                         "Thread Connection to database failed: " + m_config.uri);
@@ -169,14 +165,12 @@ namespace simple_mariadb::client {
                 }
             }
         }
-        m_logger->send<simple_logger::LogLevel::DEBUG>("Queue thread stopped");
     }
 
     void MariaDBManager::m_run_checker() {
         m_checker_thread_is_running = true;
         std::this_thread::sleep_for(std::chrono::seconds(m_config.checker_time));
         while (m_checker_thread_is_running) {
-            m_logger->send<simple_logger::LogLevel::DEBUG>("MariaDBManager Checker thread running");
             if (!this->m_is_connected(m_conn_read)) {
                 m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
                         "MariaDBManager Checker Read Connection to database failed: " + m_config.uri);
@@ -203,9 +197,9 @@ namespace simple_mariadb::client {
             stmt->execute(query);
         } catch (sql::SQLException &e) {
             if (e.getErrorCode() == 1452) {
-            m_logger->send<simple_logger::LogLevel::WARNING>(
-                    std::to_string(e.getErrorCode()) + " INSERT warning: " + std::string(e.what()) + " QUERY: <" +
-                    query + ">");
+                m_logger->send<simple_logger::LogLevel::WARNING>(
+                        std::to_string(e.getErrorCode()) + " INSERT warning: " + std::string(e.what()) + " QUERY: <" +
+                        query + ">");
                 return true;
             }
             m_error_counter++;
@@ -214,6 +208,7 @@ namespace simple_mariadb::client {
                     query + ">");
             return false;
         }
+        m_logger->send<simple_logger::LogLevel::DEBUG>("Single INSERT success: " + query);
         return true;
     }
 
@@ -245,6 +240,8 @@ namespace simple_mariadb::client {
             m_conn_write->rollback();
             success = false;
         }
+        if (!success)
+            m_logger->send<simple_logger::LogLevel::ERROR>("Multi INSERT failed: " + multi_query.str());
         return success;
     }
 
@@ -296,7 +293,6 @@ namespace simple_mariadb::client {
     json MariaDBManager::query_to_json(const std::string &query) {
         return simple_mariadb::client::MariaDBManager::resultset_to_json(*this->query(query));
     }
-
 
     json MariaDBManager::resultset_to_json(sql::ResultSet &res) {
         json result;
@@ -357,7 +353,6 @@ namespace simple_mariadb::client {
         }
         return result;
     }
-
 
     bool MariaDBManager::ping() {
         try {
@@ -493,6 +488,10 @@ namespace simple_mariadb::client {
 
     void MariaDBManager::clear_queue() {
         m_queries.wipeout();
+    }
+
+    Stats MariaDBManager::get_stats() {
+        return m_queries.get_stats();
     }
 
 }
