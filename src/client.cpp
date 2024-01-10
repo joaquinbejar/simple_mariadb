@@ -172,16 +172,16 @@ namespace simple_mariadb::client {
         std::this_thread::sleep_for(std::chrono::seconds(m_config.checker_time));
         while (m_checker_thread_is_running) {
             if (!this->m_is_connected(m_conn_read)) {
-                m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
+                m_logger->send<simple_logger::LogLevel::WARNING>(
                         "MariaDBManager Checker Read Connection to database failed: " + m_config.uri);
                 std::lock_guard<std::mutex> lock(m_read_mutex);
                 m_get_connection(m_conn_read);
             }
             if (!this->m_is_connected(m_conn_write)) {
-                m_logger->send<simple_logger::LogLevel::INFORMATIONAL>(
+                m_logger->send<simple_logger::LogLevel::WARNING>(
                         "MariaDBManager Checker Write Connection to database failed: " + m_config.uri);
                 std::lock_guard<std::mutex> lock(m_write_mutex);
-                m_get_connection(m_conn_read);
+                m_get_connection(m_conn_write);
             }
             std::this_thread::sleep_for(std::chrono::seconds(m_config.checker_time));
         }
