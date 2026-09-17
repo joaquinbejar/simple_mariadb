@@ -6,10 +6,17 @@ FetchContent_Declare(mariadbcpp
 )
 FetchContent_Populate(mariadbcpp)
 
+# mariadb-connector-cpp builds its own copy of libmariadb; see cmake/mariadb.cmake
+# for why the system zlib is needed on macOS.
+set(MARIADBCPP_EXTRA_CMAKE_ARGS "")
+if (APPLE)
+    list(APPEND MARIADBCPP_EXTRA_CMAKE_ARGS -DWITH_EXTERNAL_ZLIB=ON)
+endif ()
+
 if(NOT EXISTS "${MARIADBCPP_LIB}")
     message(STATUS "mariadbcpp library not found, building it")
     execute_process(
-            COMMAND ${CMAKE_COMMAND} -DMARIADB_LINK_DYNAMIC=OFF -DWITH_UNIT_TESTS=OFF -S ${mariadbcpp_SOURCE_DIR} -B ${mariadbcpp_BINARY_DIR}
+            COMMAND ${CMAKE_COMMAND} -DMARIADB_LINK_DYNAMIC=OFF -DWITH_UNIT_TESTS=OFF ${MARIADBCPP_EXTRA_CMAKE_ARGS} -S ${mariadbcpp_SOURCE_DIR} -B ${mariadbcpp_BINARY_DIR}
             WORKING_DIRECTORY ${mariadbcpp_SOURCE_DIR}
             COMMAND_ECHO STDOUT
             COMMAND_ECHO STDERR
