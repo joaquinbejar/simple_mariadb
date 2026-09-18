@@ -6,10 +6,17 @@ FetchContent_Declare(mariadb
 )
 FetchContent_Populate(mariadb)
 
+# The bundled zlib in mariadb-connector-c does not compile against the current
+# macOS SDK (its fdopen macro clashes with <stdio.h>); use the system zlib there.
+set(MARIADB_EXTRA_CMAKE_ARGS "")
+if (APPLE)
+    list(APPEND MARIADB_EXTRA_CMAKE_ARGS -DWITH_EXTERNAL_ZLIB=ON)
+endif ()
+
 if(NOT EXISTS "${MARIADB_LIB}" OR NOT EXISTS "${MARIADBCLIENT_LIB}")
     message(STATUS "mariadb library not found, building it")
     execute_process(
-            COMMAND ${CMAKE_COMMAND} -S ${mariadb_SOURCE_DIR} -B ${mariadb_BINARY_DIR}
+            COMMAND ${CMAKE_COMMAND} ${MARIADB_EXTRA_CMAKE_ARGS} -S ${mariadb_SOURCE_DIR} -B ${mariadb_BINARY_DIR}
             WORKING_DIRECTORY ${mariadb_SOURCE_DIR}
             COMMAND_ECHO STDOUT
             COMMAND_ECHO STDERR

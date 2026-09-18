@@ -9,11 +9,28 @@ set(GITPASS "$ENV{GITPASS}")
 set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${mariadbcpp_SOURCE_DIR}/libmariadb/libmariadb)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH})
 
+include(FetchContent)
+# Catch2 and nlohmann_json only arrive transitively through simple_logger;
+# declare them first so these pins win (FetchContent honours the first
+# declaration). common_cpp v0.1.5 pins nlohmann_json v3.11.2, whose
+# cmake_minimum_required is rejected by CMake >= 4.0.
+FetchContent_Declare(Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.16.0
+)
+FetchContent_Declare(nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.12.0
+)
 include(cmake/mariadb.cmake)
 include(cmake/mariadbcpp.cmake)
 include(cmake/simple_logger.cmake)
 
 find_package(OpenSSL REQUIRED)
+if (APPLE)
+    # libmariadb is built against the system zlib on macOS (see cmake/mariadb.cmake).
+    set(SIMPLE_MARIADB_ZLIB z)
+endif ()
 
 
 set(MARIADBCPP_INCLUDE_DIRS "${MARIADBCPP_HEADER}")
@@ -58,7 +75,8 @@ target_link_libraries(simple_mariadb
         simple_config
         simple_logger
         common
-        OpenSSL::SSL OpenSSL::Crypto)
+        OpenSSL::SSL OpenSSL::Crypto
+        ${SIMPLE_MARIADB_ZLIB})
 
 set(SIMPLE_MARIADB_TESTS_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 option(NO_SIMPLE_MARIADB_TESTS "simple_mariadb Disable simple_mariadb tests" OFF)
